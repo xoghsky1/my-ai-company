@@ -1,0 +1,10 @@
+[
+ {
+  "name": "r1-다시열기-저장유지",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); return document.getElementById('combo-list').innerText })()"
+ },
+ {
+  "name": "r2-삭제",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); const li = [...document.querySelectorAll('#combo-list li')].find(li => li.textContent.includes('그레이 타일안')); [...li.querySelectorAll('button')].find(b => b.textContent === '삭제').click(); return document.getElementById('combo-list').innerText })()"
+ }
+]

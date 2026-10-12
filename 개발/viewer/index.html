@@ -23,7 +23,7 @@
     font: 14px/1.5 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
     display: grid;
     grid-template-rows: 48px 1fr;
-    grid-template-columns: 260px 1fr;
+    grid-template-columns: 280px 1fr;
     overflow: hidden;
   }
   header {
@@ -38,14 +38,24 @@
     font-size: 12px; padding: 2px 8px; border-radius: 999px;
     background: #fff4e5; color: #9a5b00; border: 1px solid #ffd8a8;
   }
+  #combo-now { margin-left: auto; font-size: 12px; color: var(--muted); }
   aside {
     background: var(--panel);
     border-right: 1px solid var(--line);
-    padding: 12px 14px;
-    overflow-y: auto;
+    display: flex; flex-direction: column;
+    min-height: 0;
   }
+  .tabs { display: flex; border-bottom: 1px solid var(--line); }
+  .tabs button {
+    flex: 1; border: 0; border-radius: 0; background: none; padding: 10px 0 8px;
+    border-bottom: 2px solid transparent; color: var(--muted); font-weight: 600;
+  }
+  .tabs button.on { color: var(--accent); border-bottom-color: var(--accent); background: none; }
+  .panel { padding: 12px 14px; overflow-y: auto; flex: 1; min-height: 0; }
+  .tab-body { display: none; }
+  .tab-body.on { display: block; }
   aside h2 { font-size: 12px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
-  aside h2:first-child { margin-top: 2px; }
+  .tab-body > h2:first-child { margin-top: 2px; }
   .row { display: flex; flex-wrap: wrap; gap: 6px; }
   button {
     font: inherit; font-size: 13px;
@@ -55,11 +65,28 @@
   }
   button:hover { border-color: #b9c1cc; }
   button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   label.check { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; }
-  .divider { border-top: 1px solid var(--line); margin: 16px 0 4px; }
+  select, input[type=text] {
+    font: inherit; font-size: 13px; width: 100%;
+    padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
+  }
+  .chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .chip { display: flex; align-items: center; gap: 6px; text-align: left; padding: 5px 6px; font-size: 12px; }
+  .chip .sw { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex: none; }
+  .note { font-size: 12px; color: var(--muted); margin: 6px 0; }
+  .option-box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+  #combo-list { list-style: none; padding: 0; margin: 6px 0 0; }
+  #combo-list li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+  #combo-list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #combo-list li.current .name { color: var(--accent); font-weight: 700; }
+  #combo-list button { padding: 2px 8px; font-size: 12px; }
+  .info-area { border-top: 1px solid var(--line); padding: 10px 14px 12px; max-height: 40%; overflow-y: auto; }
+  .info-area h2 { margin-top: 0; }
   #info .empty { color: var(--muted); font-size: 13px; }
   #info .room-name { font-weight: 700; font-size: 15px; }
   #info .sub { color: var(--muted); font-size: 12px; }
+  #info .warn { color: var(--measure); font-weight: 700; }
   #measures { list-style: none; padding: 0; margin: 6px 0 0; }
   #measures li { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
   #measures li b { color: var(--measure); }
@@ -94,36 +121,88 @@
 <header>
   <h1 id="title">우리집 3D 뷰어</h1>
   <span class="badge">치수는 평면도 기반 추정 · 천장고 2.3m 추정</span>
+  <span id="combo-now"></span>
 </header>
 
 <aside>
-  <h2>시점</h2>
-  <div class="row">
-    <button id="view-oblique" class="on">비스듬히 보기</button>
-    <button id="view-top">위에서 보기</button>
-    <button id="view-reset">처음 위치로</button>
+  <nav class="tabs">
+    <button data-tab="view" class="on">보기</button>
+    <button data-tab="finish">마감재</button>
+    <button data-tab="furniture">가구</button>
+    <button data-tab="combo">조합</button>
+  </nav>
+
+  <div class="panel">
+    <!-- 보기 -->
+    <section class="tab-body on" id="tab-view">
+      <h2>시점</h2>
+      <div class="row">
+        <button id="view-oblique" class="on">비스듬히 보기</button>
+        <button id="view-top">위에서 보기</button>
+        <button id="view-reset">처음 위치로</button>
+      </div>
+      <h2>벽 높이</h2>
+      <div class="row">
+        <button id="wall-full" class="on">전체 2.3m</button>
+        <button id="wall-low">낮춘 벽 1.0m</button>
+      </div>
+      <h2>치수 재기</h2>
+      <div class="row">
+        <button id="measure-toggle">재기 시작</button>
+        <button id="measure-clear">지우기</button>
+      </div>
+      <h2>표시</h2>
+      <label class="check"><input type="checkbox" id="show-grid" checked> 1m 격자</label>
+      <label class="check"><input type="checkbox" id="show-labels" checked> 방 이름</label>
+    </section>
+
+    <!-- 마감재 -->
+    <section class="tab-body" id="tab-finish">
+      <h2>방</h2>
+      <select id="finish-room"></select>
+      <div class="note">3D 화면에서 방 바닥을 클릭해도 고를 수 있습니다.</div>
+      <h2>바닥재</h2>
+      <div class="chips" id="floor-chips"></div>
+      <h2>벽 색</h2>
+      <div class="chips" id="wall-chips"></div>
+      <div class="row" style="margin-top:10px"><button id="apply-all">전체 방에 적용</button></div>
+      <div class="note">욕실·다용도실·발코니·실외기실은 제외됩니다.</div>
+      <h2>유상 옵션</h2>
+      <div class="option-box">
+        <label class="check"><input type="checkbox" id="art-wall"> <span id="art-wall-name">거실 아트월 대형타일</span></label>
+        <div class="note">거실 왼쪽 벽(안방과 맞닿은 벽)</div>
+      </div>
+    </section>
+
+    <!-- 가구 -->
+    <section class="tab-body" id="tab-furniture">
+      <h2>가구 목록</h2>
+      <div id="furniture-list"></div>
+      <div class="note">가구를 끌어서 옮기고, R 키로 돌립니다.</div>
+      <div class="row" style="margin-top:8px">
+        <button id="furniture-rotate">90° 돌리기</button>
+        <button id="furniture-reset">가구 처음 자리로</button>
+      </div>
+    </section>
+
+    <!-- 조합 -->
+    <section class="tab-body" id="tab-combo">
+      <h2>지금 상태 저장</h2>
+      <div class="row" style="flex-wrap:nowrap">
+        <input type="text" id="combo-name" placeholder="조합 이름 (예: 그레이 타일안)">
+        <button id="combo-save" class="primary">저장</button>
+      </div>
+      <h2>저장된 조합</h2>
+      <ul id="combo-list"></ul>
+      <div class="note">이 PC의 브라우저에만 저장됩니다. 다른 PC나 브라우저에서는 보이지 않습니다.</div>
+    </section>
   </div>
 
-  <h2>벽 높이</h2>
-  <div class="row">
-    <button id="wall-full" class="on">전체 2.3m</button>
-    <button id="wall-low">낮춘 벽 1.0m</button>
+  <div class="info-area">
+    <h2>정보</h2>
+    <div id="info"><div class="empty">방 바닥이나 가구를 클릭하면 정보가 나옵니다.</div></div>
+    <ul id="measures"></ul>
   </div>
-
-  <h2>치수 재기</h2>
-  <div class="row">
-    <button id="measure-toggle">재기 시작</button>
-    <button id="measure-clear">지우기</button>
-  </div>
-
-  <h2>표시</h2>
-  <label class="check"><input type="checkbox" id="show-grid" checked> 1m 격자</label>
-  <label class="check"><input type="checkbox" id="show-labels" checked> 방 이름</label>
-
-  <div class="divider"></div>
-  <h2>정보</h2>
-  <div id="info"><div class="empty">방 바닥을 클릭하면 정보가 나옵니다.</div></div>
-  <ul id="measures"></ul>
 </aside>
 
 <main id="stage">
@@ -132,6 +211,7 @@
 </main>
 
 <script src="../../디자이너/3d-모델/model.js"></script>
+<script src="../../디자이너/인테리어/interior.js"></script>
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -143,15 +223,17 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
 
-const stage = document.getElementById('stage')
+const $ = id => document.getElementById(id)
+const stage = $('stage')
 const model = window.APT_MODEL
-if (!model) {
-  const err = document.getElementById('error')
+const interior = window.APT_INTERIOR
+if (!model || !interior) {
+  const err = $('error')
   err.style.display = 'flex'
-  err.textContent = '모델 데이터(디자이너/3d-모델/model.js)를 찾지 못했습니다. 폴더 구조를 그대로 두고 열어 주세요.'
-  throw new Error('APT_MODEL missing')
+  err.textContent = '모델 데이터(디자이너/3d-모델/model.js, 디자이너/인테리어/interior.js)를 찾지 못했습니다. 폴더 구조를 그대로 두고 열어 주세요.'
+  throw new Error('data missing')
 }
-document.getElementById('title').textContent = model.title
+$('title').textContent = model.title
 
 // ---- 색 (디자이너 화면 디자인 기준) ----
 const COLORS = {
@@ -159,14 +241,13 @@ const COLORS = {
   glass: 0x9fc6e0, door: 0x8b6b4a, louver: 0xa8a8a8,
   select: 0x3b82f6, measure: 0xe5484d,
 }
-const FLOOR = {
-  '거실': 0xd9c3a5, '주방/식당': 0xd9c3a5, '현관': 0xd9c3a5, '복도': 0xd9c3a5,
-  '안방': 0xe3d2b8, '아기방': 0xe3d2b8, '옷방': 0xe3d2b8,
+const FIXED_FLOOR = {
   '욕실1': 0xc9d3d8, '욕실2': 0xc9d3d8,
   '다용도실': 0xcfcfc9, '발코니': 0xcfcfc9, '실외기실': 0xcfcfc9,
 }
 const FULL_H = model.wallHeight
 const LOW_H = 1.0
+let wallH = FULL_H
 
 // 평면도 좌표(x 오른쪽, y 아래쪽, m) → 3D (x, z), 집 가운데를 원점으로
 const CX = model.extent[0] / 2
@@ -177,13 +258,13 @@ const pz = y => y - CZ
 // ---- 기본 장면 ----
 const scene = new THREE.Scene()
 scene.background = new THREE.Color(COLORS.bg)
-
 const camera = new THREE.PerspectiveCamera(45, 1, 0.02, 200)
 const renderer = new THREE.WebGLRenderer({ antialias: true })
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.shadowMap.enabled = true
 renderer.shadowMap.type = THREE.PCFSoftShadowMap
 stage.appendChild(renderer.domElement)
+const MAX_ANISO = renderer.capabilities.getMaxAnisotropy()
 
 const labelRenderer = new CSS2DRenderer()
 labelRenderer.domElement.style.position = 'absolute'
@@ -206,6 +287,10 @@ sun.shadow.mapSize.set(2048, 2048)
 Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 })
 sun.shadow.bias = -0.0005
 scene.add(sun)
+// 반대편 보조광: 해를 등진 벽(거실 아트월 등)도 흰색이 회색으로 죽지 않게
+const fill = new THREE.DirectionalLight(0xffffff, 0.7)
+fill.position.set(6, 8, -5)
+scene.add(fill)
 
 // ---- 격자 (1m, 10cm 보조선) ----
 const grid = new THREE.Group()
@@ -220,11 +305,87 @@ major.position.y = 0.007
 grid.add(minor, major)
 scene.add(grid)
 
+// ---- 무늬 텍스처 (실제 크기로 반복) ----
+function hash(n) { const s = Math.sin(n * 127.1) * 43758.5453; return s - Math.floor(s) }
+function canvasTexture(w, h, draw) {
+  const c = document.createElement('canvas')
+  c.width = w; c.height = h
+  draw(c.getContext('2d'), w, h)
+  const t = new THREE.CanvasTexture(c)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  t.colorSpace = THREE.SRGBColorSpace
+  t.anisotropy = MAX_ANISO
+  return t
+}
+const floorTexCache = new Map()
+// 바닥재 텍스처와, 텍스처 한 장이 덮는 실제 크기(m)
+function floorTexture(f) {
+  if (floorTexCache.has(f.id)) return floorTexCache.get(f.id)
+  let tex, span
+  if (f.pattern === 'tile') {
+    span = f.size
+    tex = canvasTexture(512, 512, (g, w, h) => {
+      g.fillStyle = f.color; g.fillRect(0, 0, w, h)
+      for (let i = 0; i < 1400; i++) {   // 은은한 얼룩
+        g.fillStyle = `rgba(0,0,0,${0.012 * hash(i)})`
+        g.fillRect(hash(i + 1) * w, hash(i + 2) * h, 6, 6)
+      }
+      g.fillStyle = f.grain
+      const grout = Math.max(2, Math.round(w * 0.003 / f.size))   // 줄눈 3mm
+      g.fillRect(0, 0, w, grout); g.fillRect(0, 0, grout, h)
+    })
+  } else {
+    const planks = 4
+    span = f.size * planks          // 가로 폭 4장, 세로도 같은 길이로 반복
+    tex = canvasTexture(1024, 1024, (g, w, h) => {
+      g.fillStyle = f.color; g.fillRect(0, 0, w, h)
+      const ph = h / planks
+      for (let p = 0; p < planks; p++) {
+        const y0 = p * ph
+        g.globalAlpha = 0.35
+        for (let k = 0; k < 14; k++) {      // 나뭇결
+          g.strokeStyle = f.grain
+          g.lineWidth = 1 + hash(p * 31 + k) * 1.5
+          const yy = y0 + hash(p * 17 + k) * ph
+          g.beginPath(); g.moveTo(0, yy)
+          for (let x = 0; x <= w; x += 64) g.lineTo(x, yy + Math.sin(x / 90 + k) * 2)
+          g.stroke()
+        }
+        g.globalAlpha = 1
+        g.fillStyle = f.grain
+        g.fillRect(0, y0, w, 2)                         // 판 사이 줄
+        g.fillRect(Math.floor(hash(p + 5) * w), y0, 2, ph)  // 판 끝 이음
+      }
+    })
+  }
+  const out = { tex, span }
+  floorTexCache.set(f.id, out)
+  return out
+}
+function tileWallTexture(a) {
+  return canvasTexture(256, 512, (g, w, h) => {
+    g.fillStyle = a.color; g.fillRect(0, 0, w, h)
+    g.globalAlpha = 0.07
+    for (let k = 0; k < 9; k++) {     // 옅은 대리석 결
+      g.strokeStyle = '#B9B3AA'; g.lineWidth = 1 + hash(k) * 2
+      g.beginPath(); g.moveTo(hash(k + 3) * w, 0)
+      g.bezierCurveTo(hash(k + 4) * w, h * 0.3, hash(k + 5) * w, h * 0.7, hash(k + 6) * w, h)
+      g.stroke()
+    }
+    g.globalAlpha = 1
+    g.fillStyle = a.grout
+    g.fillRect(0, 0, w, 2); g.fillRect(0, 0, 2, h)
+  })
+}
+
 // ---- 집 ----
 const house = new THREE.Group()
 scene.add(house)
 const pickables = []   // 치수 재기 대상 (바닥·벽)
 const floors = []      // 방 선택 대상
+const floorByRoom = new Map()
+const wallPaint = new Map()     // 방 이름 → 벽면 재질
+let artWallMesh = null
 
 function box(x0, y0, x1, y1, bottom, top, material) {
   const w = Math.abs(x1 - x0), d = Math.abs(y1 - y0), h = top - bottom
@@ -245,31 +406,55 @@ const doorMat = new THREE.MeshStandardMaterial({ color: COLORS.door, roughness: 
 const louverMat = new THREE.MeshStandardMaterial({ color: COLORS.louver, roughness: 0.6 })
 const baseFloorMat = new THREE.MeshStandardMaterial({ color: 0xd2bd9f, roughness: 0.9 })
 
+// 평면도 직사각형들을 한 장의 바닥으로. uv는 실제 m 좌표 (텍스처 반복용)
 function quads(cells, y) {
-  const pos = [], idx = []
+  const pos = [], uv = [], idx = []
   for (const [x0, y0, x1, y1] of cells) {
     const i = pos.length / 3
     pos.push(px(x0), y, pz(y0), px(x1), y, pz(y0), px(x1), y, pz(y1), px(x0), y, pz(y1))
+    uv.push(x0, -y0, x1, -y0, x1, -y1, x0, -y1)
     idx.push(i, i + 2, i + 1, i, i + 3, i + 2)
   }
   const g = new THREE.BufferGeometry()
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2))
   g.setIndex(idx)
   g.computeVertexNormals()
   return g
 }
 
+// 벽면 마감: 방 쪽으로 몇 mm 띄운 얇은 판. side는 벽이 방의 어느 쪽에 있는지(n/s/w/e)
+const FACE = {
+  n: { normal: [0, 1], rotY: 0 },
+  s: { normal: [0, -1], rotY: Math.PI },
+  w: { normal: [1, 0], rotY: Math.PI / 2 },
+  e: { normal: [-1, 0], rotY: -Math.PI / 2 },
+}
+function facePlane([x0, y0, x1, y1, side], material, offset, height) {
+  const len = Math.hypot(x1 - x0, y1 - y0)
+  if (len < 0.01) return null
+  const f = FACE[side]
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(len, height), material)
+  mesh.position.set(px((x0 + x1) / 2) + f.normal[0] * offset, height / 2, pz((y0 + y1) / 2) + f.normal[1] * offset)
+  mesh.rotation.y = f.rotY
+  mesh.receiveShadow = true
+  house.add(mesh)
+  return mesh
+}
+
 const labels = []
-function buildHouse(wallH) {
+function buildHouse() {
   for (const child of [...house.children]) {
     house.remove(child)
     child.geometry?.dispose()
+    if (child.element) child.element.remove()
   }
   pickables.length = 0
   floors.length = 0
   labels.length = 0
+  floorByRoom.clear()
+  wallPaint.clear()
 
-  // 바닥판 (방 사이 문턱·경계까지 집 안 전체)
   if (model.base) {
     const baseMesh = new THREE.Mesh(quads(model.base, 0.0), baseFloorMat)
     baseMesh.receiveShadow = true
@@ -277,33 +462,40 @@ function buildHouse(wallH) {
     pickables.push(baseMesh)
   }
 
-  // 방 바닥
   for (const room of model.rooms) {
-    const mat = new THREE.MeshStandardMaterial({ color: FLOOR[room.name] ?? 0xd9c3a5, roughness: 0.85 })
+    const mat = new THREE.MeshStandardMaterial({ color: FIXED_FLOOR[room.name] ?? 0xd9c3a5, roughness: 0.85 })
     const mesh = new THREE.Mesh(quads(room.cells, 0.002), mat)
     mesh.receiveShadow = true
     mesh.userData.room = room
     house.add(mesh)
     floors.push(mesh)
+    floorByRoom.set(room.name, mesh)
     pickables.push(mesh)
+
+    if (interior.finishRooms.includes(room.name) && room.wallFaces) {
+      const paint = new THREE.MeshStandardMaterial({ color: COLORS.wall, roughness: 0.92 })
+      wallPaint.set(room.name, paint)
+      for (const face of room.wallFaces) {
+        const m = facePlane(face, paint, 0.004, wallH)
+        if (m) pickables.push(m)
+      }
+    }
 
     const el = document.createElement('div')
     el.className = 'room-label'
     el.textContent = room.name
     const label = new CSS2DObject(el)
     label.position.set(px(room.label[0]), 0.15, pz(room.label[1]))
-    label.visible = document.getElementById('show-labels').checked
+    label.visible = $('show-labels').checked
     house.add(label)
     labels.push(label)
   }
 
-  // 벽
   for (const [x0, y0, x1, y1] of model.walls) {
     const m = box(x0, y0, x1, y1, 0, wallH, wallMats)
     if (m) pickables.push(m)
   }
 
-  // 창·문: 창틀 아래와 윗선 위는 벽으로 채우고, 사이는 유리(문은 비움)
   for (const o of model.openings) {
     const [x0, y0, x1, y1] = o.rect
     const sill = Math.min(o.sill, wallH)
@@ -324,7 +516,272 @@ function buildHouse(wallH) {
       box(x0, y0, x1, y1, 0, 0.012, doorMat)
     }
   }
-  if (selected) select(floors.find(f => f.userData.room.name === selected.userData.room.name) ?? null)
+
+  // 유상 옵션: 아트월
+  const a = interior.artWall
+  const [ax0, ay0, ax1, ay1] = a.face
+  const len = Math.hypot(ax1 - ax0, ay1 - ay0)
+  const tex = tileWallTexture(a)
+  tex.repeat.set(len / a.tileW, wallH / a.tileH)
+  artWallMesh = facePlane(a.face, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.35, metalness: 0.0 }), 0.012, wallH)
+  if (artWallMesh) pickables.push(artWallMesh)
+
+  applyFinishes()
+  if (selectedRoom) selectRoom(floorByRoom.get(selectedRoom.userData.room.name) ?? null)
+}
+
+// ---- 상태: 마감재·옵션·가구 ----
+const floorById = Object.fromEntries(interior.floors.map(f => [f.id, f]))
+const wallById = Object.fromEntries(interior.walls.map(w => [w.id, w]))
+const defaultFurniture = () => Object.fromEntries(interior.furniture.map(f => [f.id, { at: [...f.at], rot: f.rot, visible: true }]))
+const presetState = () => ({
+  floors: { ...interior.preset.floors },
+  walls: { ...interior.preset.walls },
+  artWall: interior.preset.artWall,
+  furniture: defaultFurniture(),
+})
+let state = presetState()
+
+function applyFinishes() {
+  for (const name of interior.finishRooms) {
+    const mesh = floorByRoom.get(name)
+    const f = floorById[state.floors[name]]
+    if (mesh && f) {
+      const { tex, span } = floorTexture(f)
+      const t = tex.clone()
+      t.needsUpdate = true
+      t.repeat.set(1 / span, 1 / span)
+      mesh.material.map?.dispose()
+      mesh.material.map = t
+      mesh.material.color.set(0xffffff)
+      mesh.material.needsUpdate = true
+    }
+    const paint = wallPaint.get(name)
+    const w = wallById[state.walls[name]]
+    if (paint && w) paint.color.set(w.color)
+  }
+  if (artWallMesh) artWallMesh.visible = state.artWall
+  $('art-wall').checked = state.artWall
+  renderFinishPanel()
+}
+
+// ---- 마감재 패널 ----
+const finishRoom = $('finish-room')
+for (const name of interior.finishRooms) finishRoom.add(new Option(name, name))
+$('art-wall-name').textContent = interior.artWall.name
+function chip(color, label, on, onClick) {
+  const b = document.createElement('button')
+  b.className = 'chip' + (on ? ' on' : '')
+  b.innerHTML = `<span class="sw" style="background:${color}"></span><span>${label}</span>`
+  b.onclick = onClick
+  return b
+}
+function renderFinishPanel() {
+  const room = finishRoom.value
+  const fc = $('floor-chips'), wc = $('wall-chips')
+  fc.innerHTML = ''
+  wc.innerHTML = ''
+  for (const f of interior.floors)
+    fc.appendChild(chip(f.color, f.name, state.floors[room] === f.id, () => { state.floors[room] = f.id; markChanged(); applyFinishes() }))
+  for (const w of interior.walls)
+    wc.appendChild(chip(w.color, w.name, state.walls[room] === w.id, () => { state.walls[room] = w.id; markChanged(); applyFinishes() }))
+}
+finishRoom.onchange = renderFinishPanel
+$('apply-all').onclick = () => {
+  const room = finishRoom.value
+  for (const name of interior.finishRooms) {
+    state.floors[name] = state.floors[room]
+    state.walls[name] = state.walls[room]
+  }
+  markChanged()
+  applyFinishes()
+}
+$('art-wall').onchange = e => { state.artWall = e.target.checked; markChanged(); applyFinishes() }
+
+// ---- 가구 ----
+const furnitureGroup = new THREE.Group()
+scene.add(furnitureGroup)
+const furnitureObjs = new Map()
+const mm = v => v / 1000
+
+function part(group, mat, w, h, d, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat)
+  m.position.set(x, y + h / 2, z)
+  m.castShadow = true
+  m.receiveShadow = true
+  group.add(m)
+  return m
+}
+// 가구 모양. 로컬 x = 가로(w), 로컬 z = 세로(d), 등판(뒷면)은 -z 쪽
+function buildFurniture(item) {
+  const g = new THREE.Group()
+  const [W, D, H] = item.size.map(mm)
+  const c = item.colors
+  const mat = hex => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.8 })
+  if (item.kind === 'bed') {
+    part(g, mat(c.frame), W, 0.25, D, 0, 0, 0)
+    part(g, mat(c.mattress), W - 0.12, 0.22, D - 0.06, 0.03, 0.25, 0)
+    part(g, mat(c.head), 0.08, H, D, -W / 2 + 0.04, 0, 0)
+    for (const s of [-1, 1]) part(g, mat('#FFFFFF'), 0.4, 0.1, 0.55, -W / 2 + 0.33, 0.47, s * 0.35)
+  } else if (item.kind === 'crib') {
+    part(g, mat(c.frame), W, 0.08, D, 0, 0.3, 0)
+    part(g, mat(c.mattress), W - 0.06, 0.1, D - 0.06, 0, 0.38, 0)
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) part(g, mat(c.frame), 0.04, H, 0.04, sx * (W / 2 - 0.02), 0, sz * (D / 2 - 0.02))
+    for (const sz of [-1, 1]) part(g, mat(c.frame), W, H - 0.3, 0.02, 0, 0.3, sz * (D / 2 - 0.01))
+    for (const sx of [-1, 1]) {
+      part(g, mat(c.frame), 0.03, 0.03, D, sx * (W / 2 - 0.015), H - 0.03, 0)
+      for (let z = -D / 2 + 0.08; z < D / 2 - 0.04; z += 0.08) part(g, mat(c.frame), 0.015, H - 0.4, 0.015, sx * (W / 2 - 0.015), 0.38, z)
+    }
+  } else if (item.kind === 'cabinet') {
+    part(g, mat(c.body), W, H - 0.05, D, 0, 0.05, 0)
+    part(g, mat(c.line), W - 0.02, 0.05, D - 0.04, 0, 0, -0.02)
+    for (let i = 1; i < 4; i++) part(g, mat(c.line), W - 0.04, 0.006, 0.006, 0, 0.05 + (H - 0.05) * i / 4, D / 2)
+  } else if (item.kind === 'dining') {
+    const tableD = 0.8
+    part(g, mat(c.top), W, 0.03, tableD, 0, H - 0.03, 0)
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) part(g, mat(c.leg), 0.05, H - 0.03, 0.05, sx * (W / 2 - 0.08), 0, sz * (tableD / 2 - 0.08))
+    const seat = 0.45
+    for (const sz of [-1, 1]) for (const sx of [-1, 1]) {
+      const z = sz * (tableD / 2 + seat / 2 - 0.05)
+      part(g, mat(c.chair), seat - 0.03, 0.04, seat - 0.03, sx * 0.3, 0.43, z)
+      for (const lx of [-1, 1]) for (const lz of [-1, 1]) part(g, mat(c.leg), 0.03, 0.43, 0.03, sx * 0.3 + lx * 0.18, 0, z + lz * 0.18)
+      part(g, mat(c.chair), seat - 0.03, 0.38, 0.03, sx * 0.3, 0.47, z + sz * (seat / 2 - 0.03))
+    }
+  } else if (item.kind === 'sofa') {
+    part(g, mat(c.body), W, 0.42, D, 0, 0, 0)
+    part(g, mat(c.body), W, H - 0.42, 0.2, 0, 0.42, -D / 2 + 0.1)
+    for (const sx of [-1, 1]) part(g, mat(c.body), 0.18, 0.2, D, sx * (W / 2 - 0.09), 0.42, 0)
+    const n = 3, cw = (W - 0.36) / n
+    for (let i = 0; i < n; i++) part(g, mat(c.cushion), cw - 0.02, 0.1, D - 0.24, -W / 2 + 0.18 + cw * (i + 0.5), 0.42, 0.1)
+  }
+  g.userData.item = item
+  return g
+}
+for (const item of interior.furniture) {
+  const g = buildFurniture(item)
+  furnitureGroup.add(g)
+  furnitureObjs.set(item.id, g)
+}
+const itemById = Object.fromEntries(interior.furniture.map(f => [f.id, f]))
+
+// 바닥 위 차지하는 사각형 (평면도 좌표). 90도 단위라 축에 맞는 사각형이 된다
+function footprint(id) {
+  const item = itemById[id], s = state.furniture[id]
+  const [W, D] = item.size.map(mm)
+  const turned = s.rot % 180 !== 0
+  const hw = (turned ? D : W) / 2, hd = (turned ? W : D) / 2
+  return [s.at[0] - hw, s.at[1] - hd, s.at[0] + hw, s.at[1] + hd]
+}
+const TOL = 0.005
+function hitsWall(id) {
+  const [a0, b0, a1, b1] = footprint(id)
+  return model.walls.some(([x0, y0, x1, y1]) => a0 < x1 - TOL && a1 > x0 + TOL && b0 < y1 - TOL && b1 > y0 + TOL)
+}
+function placeFurniture(id) {
+  const g = furnitureObjs.get(id), s = state.furniture[id]
+  g.position.set(px(s.at[0]), 0, pz(s.at[1]))
+  g.rotation.y = -s.rot * Math.PI / 180
+  g.visible = s.visible
+  const bad = s.visible && hitsWall(id)
+  g.traverse(m => {
+    if (m.isMesh) { m.material.emissive.set(bad ? COLORS.measure : 0x000000); m.material.emissiveIntensity = bad ? 0.4 : 0 }
+  })
+  g.userData.hitsWall = bad
+}
+function placeAll() {
+  for (const id of furnitureObjs.keys()) placeFurniture(id)
+  renderFurnitureList()
+  if (selectedFurniture) showFurnitureInfo()
+}
+
+// 가구 목록
+function renderFurnitureList() {
+  const list = $('furniture-list')
+  list.innerHTML = ''
+  for (const item of interior.furniture) {
+    const row = document.createElement('label')
+    row.className = 'check'
+    const cb = document.createElement('input')
+    cb.type = 'checkbox'
+    cb.checked = state.furniture[item.id].visible
+    cb.onchange = () => {
+      state.furniture[item.id].visible = cb.checked
+      if (!cb.checked && selectedFurniture?.userData.item.id === item.id) selectFurniture(null)
+      markChanged()
+      placeAll()
+    }
+    row.append(cb, ` ${item.name}`)
+    if (furnitureObjs.get(item.id).userData.hitsWall) {
+      const w = document.createElement('span')
+      w.style.color = 'var(--measure)'
+      w.style.fontSize = '12px'
+      w.textContent = ' · 벽과 겹침'
+      row.append(w)
+    }
+    list.appendChild(row)
+  }
+}
+function rotateSelected() {
+  if (!selectedFurniture) return
+  const s = state.furniture[selectedFurniture.userData.item.id]
+  s.rot = (s.rot + 90) % 360
+  markChanged()
+  placeAll()
+}
+$('furniture-rotate').onclick = rotateSelected
+$('furniture-reset').onclick = () => { state.furniture = defaultFurniture(); markChanged(); placeAll() }
+
+// ---- 선택 (방 / 가구) ----
+const info = $('info')
+const EMPTY_INFO = '<div class="empty">방 바닥이나 가구를 클릭하면 정보가 나옵니다.</div>'
+let selectedRoom = null
+let overlay = null
+let selectedFurniture = null
+let selectBox = null
+const overlayMat = new THREE.MeshBasicMaterial({ color: COLORS.select, transparent: true, opacity: 0.25, depthWrite: false })
+
+function clearRoom() {
+  if (overlay) { scene.remove(overlay); overlay.geometry.dispose(); overlay = null }
+  selectedRoom = null
+}
+function selectRoom(mesh) {
+  clearRoom()
+  if (mesh) selectFurniture(null, true)
+  selectedRoom = mesh
+  if (!mesh) { if (!selectedFurniture) info.innerHTML = EMPTY_INFO; return }
+  const room = mesh.userData.room
+  overlay = new THREE.Mesh(quads(room.cells, 0.012), overlayMat)
+  scene.add(overlay)
+  const planName = room.planName && room.planName !== room.name ? `<div class="sub">평면도 이름: ${room.planName}</div>` : ''
+  info.innerHTML = `
+    <div class="room-name">${room.name}</div>
+    <div>약 ${room.size[0].toFixed(1)} × ${room.size[1].toFixed(1)} m <span class="sub">(추정)</span></div>
+    <div class="sub">바닥 면적 약 ${room.area.toFixed(1)}㎡ (추정)</div>
+    ${planName}`
+  if (interior.finishRooms.includes(room.name)) { finishRoom.value = room.name; renderFinishPanel() }
+}
+function selectFurniture(g, keepInfo = false) {
+  if (selectBox) { scene.remove(selectBox); selectBox.geometry.dispose(); selectBox = null }
+  selectedFurniture = g
+  if (g) {
+    clearRoom()
+    selectBox = new THREE.BoxHelper(g, COLORS.select)
+    scene.add(selectBox)
+    showFurnitureInfo()
+  } else if (!keepInfo) {
+    info.innerHTML = EMPTY_INFO
+  }
+}
+function showFurnitureInfo() {
+  const item = selectedFurniture.userData.item
+  const s = state.furniture[item.id]
+  const warn = selectedFurniture.userData.hitsWall ? '<div class="warn">벽과 겹침</div>' : ''
+  info.innerHTML = `
+    <div class="room-name">${item.name}</div>
+    <div>${item.size[0]} × ${item.size[1]} × ${item.size[2]} mm</div>
+    <div class="sub">방향 ${s.rot}° · R 키로 돌리기</div>
+    ${warn}`
+  selectBox?.update()
 }
 
 // ---- 시점 ----
@@ -335,47 +792,31 @@ function setView(kind) {
   else camera.position.set(-span * 0.35, span * 1.0, span * 0.95)
   camera.lookAt(controls.target)
   controls.update()
-  document.getElementById('view-oblique').classList.toggle('on', kind !== 'top')
-  document.getElementById('view-top').classList.toggle('on', kind === 'top')
+  $('view-oblique').classList.toggle('on', kind !== 'top')
+  $('view-top').classList.toggle('on', kind === 'top')
 }
-document.getElementById('view-oblique').onclick = () => setView('oblique')
-document.getElementById('view-top').onclick = () => setView('top')
-document.getElementById('view-reset').onclick = () => setView('oblique')
+$('view-oblique').onclick = () => setView('oblique')
+$('view-top').onclick = () => setView('top')
+$('view-reset').onclick = () => setView('oblique')
 
-// ---- 벽 높이 ----
 function setWall(h) {
-  buildHouse(h)
-  document.getElementById('wall-full').classList.toggle('on', h === FULL_H)
-  document.getElementById('wall-low').classList.toggle('on', h === LOW_H)
+  wallH = h
+  buildHouse()
+  $('wall-full').classList.toggle('on', h === FULL_H)
+  $('wall-low').classList.toggle('on', h === LOW_H)
 }
-document.getElementById('wall-full').onclick = () => setWall(FULL_H)
-document.getElementById('wall-low').onclick = () => setWall(LOW_H)
+$('wall-full').onclick = () => setWall(FULL_H)
+$('wall-low').onclick = () => setWall(LOW_H)
 
-// ---- 표시 ----
-document.getElementById('show-grid').onchange = e => { grid.visible = e.target.checked }
-document.getElementById('show-labels').onchange = e => { for (const l of labels) l.visible = e.target.checked }
+$('show-grid').onchange = e => { grid.visible = e.target.checked }
+$('show-labels').onchange = e => { for (const l of labels) l.visible = e.target.checked }
 
-// ---- 방 선택 ----
-const info = document.getElementById('info')
-let selected = null
-let overlay = null
-const overlayMat = new THREE.MeshBasicMaterial({ color: COLORS.select, transparent: true, opacity: 0.25, depthWrite: false })
-function select(mesh) {
-  if (overlay) { scene.remove(overlay); overlay.geometry.dispose(); overlay = null }
-  selected = mesh
-  if (!mesh) {
-    info.innerHTML = '<div class="empty">방 바닥을 클릭하면 정보가 나옵니다.</div>'
-    return
+// ---- 탭 ----
+for (const b of document.querySelectorAll('.tabs button')) {
+  b.onclick = () => {
+    for (const x of document.querySelectorAll('.tabs button')) x.classList.toggle('on', x === b)
+    for (const s of document.querySelectorAll('.tab-body')) s.classList.toggle('on', s.id === `tab-${b.dataset.tab}`)
   }
-  const room = mesh.userData.room
-  overlay = new THREE.Mesh(quads(room.cells, 0.012), overlayMat)
-  scene.add(overlay)
-  const planName = room.planName && room.planName !== room.name ? `<div class="sub">평면도 이름: ${room.planName}</div>` : ''
-  info.innerHTML = `
-    <div class="room-name">${room.name}</div>
-    <div>약 ${room.size[0].toFixed(1)} × ${room.size[1].toFixed(1)} m <span class="sub">(추정)</span></div>
-    <div class="sub">바닥 면적 약 ${room.area.toFixed(1)}㎡ (추정)</div>
-    ${planName}`
 }
 
 // ---- 치수 재기 ----
@@ -385,9 +826,9 @@ let firstMarker = null
 const measureGroup = new THREE.Group()
 scene.add(measureGroup)
 const measureMat = new THREE.MeshBasicMaterial({ color: COLORS.measure })
-const measureList = document.getElementById('measures')
-const hint = document.getElementById('hint')
-const DEFAULT_HINT = '왼쪽 드래그 회전 · 휠 확대 · 오른쪽 드래그 이동'
+const measureList = $('measures')
+const hint = $('hint')
+const DEFAULT_HINT = '왼쪽 드래그 회전 · 휠 확대 · 오른쪽 드래그 이동 · 가구는 끌어서 옮기기'
 
 function marker(p) {
   const m = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), measureMat)
@@ -398,7 +839,7 @@ function marker(p) {
 function setMeasuring(on) {
   measuring = on
   cancelFirst()
-  const btn = document.getElementById('measure-toggle')
+  const btn = $('measure-toggle')
   btn.classList.toggle('on', on)
   btn.textContent = on ? '재기 끝내기' : '재기 시작'
   hint.classList.toggle('measure', on)
@@ -424,13 +865,12 @@ function addMeasure(a, b) {
   const label = new CSS2DObject(el)
   label.position.copy(rod.position)
   measureGroup.add(label)
-  const n = measureList.children.length + 1
   const li = document.createElement('li')
-  li.innerHTML = `<span>치수 ${n}</span><b>${dist.toFixed(2)} m</b>`
+  li.innerHTML = `<span>치수 ${measureList.children.length + 1}</span><b>${dist.toFixed(2)} m</b>`
   measureList.appendChild(li)
 }
-document.getElementById('measure-toggle').onclick = () => setMeasuring(!measuring)
-document.getElementById('measure-clear').onclick = () => {
+$('measure-toggle').onclick = () => setMeasuring(!measuring)
+$('measure-clear').onclick = () => {
   firstMarker = null
   firstPoint = null
   for (const c of [...measureGroup.children]) {
@@ -440,23 +880,73 @@ document.getElementById('measure-clear').onclick = () => {
   }
   measureList.innerHTML = ''
 }
-window.addEventListener('keydown', e => { if (e.key === 'Escape' && measuring) cancelFirst() })
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return
+  if (e.key === 'Escape' && measuring) cancelFirst()
+  if ((e.key === 'r' || e.key === 'R') && selectedFurniture) rotateSelected()
+})
 
-// ---- 클릭 (드래그와 구분) ----
+// ---- 마우스: 클릭(선택·재기)과 가구 끌기 ----
 const ray = new THREE.Raycaster()
 const ndc = new THREE.Vector2()
-let down = null
-renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 0) down = { x: e.clientX, y: e.clientY } })
-renderer.domElement.addEventListener('pointerup', e => {
-  if (e.button !== 0 || !down) return
-  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y)
-  down = null
-  if (moved > 4) return
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+function setRay(e) {
   const r = renderer.domElement.getBoundingClientRect()
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
   ray.setFromCamera(ndc, camera)
+}
+function furnitureHit() {
+  const visible = [...furnitureObjs.values()].filter(g => g.visible)
+  const hit = ray.intersectObjects(visible, true)[0]
+  if (!hit) return null
+  let o = hit.object
+  while (o && !o.userData.item) o = o.parent
+  return o
+}
+let down = null
+let drag = null
+// 캡처 단계에서 먼저 받아, 가구를 잡으면 화면 회전이 시작되지 않게 한다
+stage.addEventListener('pointerdown', e => {
+  if (e.button !== 0 || e.target !== renderer.domElement) return
+  down = { x: e.clientX, y: e.clientY }
+  if (measuring) return
+  setRay(e)
+  const g = furnitureHit()
+  if (!g) return
+  controls.enabled = false
+  const p = new THREE.Vector3()
+  ray.ray.intersectPlane(groundPlane, p)
+  drag = { g, id: g.userData.item.id, dx: g.position.x - p.x, dz: g.position.z - p.z, moved: false }
+  selectFurniture(g)
+}, true)
+window.addEventListener('pointermove', e => {
+  if (!drag) return
+  setRay(e)
+  const p = new THREE.Vector3()
+  if (!ray.ray.intersectPlane(groundPlane, p)) return
+  const s = state.furniture[drag.id]
+  s.at = [Math.round((p.x + drag.dx + CX) * 100) / 100, Math.round((p.z + drag.dz + CZ) * 100) / 100]   // 1cm 단위
+  drag.moved = true
+  placeFurniture(drag.id)
+  showFurnitureInfo()
+})
+window.addEventListener('pointerup', e => {
+  if (e.button !== 0) return
+  if (drag) {
+    if (drag.moved) { markChanged(); renderFurnitureList() }
+    drag = null
+    down = null
+    controls.enabled = true
+    return
+  }
+  if (!down) return
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y)
+  down = null
+  if (moved > 4 || e.target !== renderer.domElement) return
+  setRay(e)
   if (measuring) {
-    const hit = ray.intersectObjects(pickables.filter(Boolean), false)[0]
+    const targets = [...pickables.filter(Boolean), ...[...furnitureObjs.values()].filter(g => g.visible)]
+    const hit = ray.intersectObjects(targets, true)[0]
     if (!hit) return
     const p = hit.point.clone()
     if (!firstPoint) { firstPoint = p; firstMarker = marker(p) }
@@ -464,8 +954,74 @@ renderer.domElement.addEventListener('pointerup', e => {
     return
   }
   const hit = ray.intersectObjects(floors, false)[0]
-  select(hit ? hit.object : null)
+  if (hit) selectRoom(hit.object)
+  else { selectRoom(null); selectFurniture(null) }
 })
+
+// ---- 조합 저장·비교 ----
+const STORE_KEY = 'apt-interior-combos'
+let currentCombo = interior.preset.name
+let changed = false
+function loadCombos() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) ?? '[]') } catch { return [] }
+}
+function saveCombos(list) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); return true } catch { return false }
+}
+function markChanged() { changed = true; renderComboNow() }
+function renderComboNow() { $('combo-now').textContent = `조합: ${currentCombo}${changed ? ' (수정됨)' : ''}` }
+function applyState(s) {
+  state = JSON.parse(JSON.stringify(s))
+  // 저장 뒤에 데이터에 생긴 가구·방이 있으면 기본값으로 채운다
+  const base = presetState()
+  state.floors = { ...base.floors, ...state.floors }
+  state.walls = { ...base.walls, ...state.walls }
+  state.furniture = { ...base.furniture, ...state.furniture }
+  selectFurniture(null)
+  applyFinishes()
+  placeAll()
+}
+function renderCombos() {
+  const ul = $('combo-list')
+  ul.innerHTML = ''
+  const rows = [{ name: interior.preset.name, state: presetState(), fixed: true }, ...loadCombos()]
+  for (const c of rows) {
+    const li = document.createElement('li')
+    if (c.name === currentCombo) li.className = 'current'
+    const name = document.createElement('span')
+    name.className = 'name'
+    name.textContent = c.name + (c.fixed ? ' (기본)' : '')
+    const load = document.createElement('button')
+    load.textContent = '불러오기'
+    load.onclick = () => { applyState(c.state); currentCombo = c.name; changed = false; renderComboNow(); renderCombos() }
+    li.append(name, load)
+    if (!c.fixed) {
+      const del = document.createElement('button')
+      del.textContent = '삭제'
+      del.onclick = () => {
+        saveCombos(loadCombos().filter(x => x.name !== c.name))
+        if (currentCombo === c.name) { currentCombo = interior.preset.name; changed = true; renderComboNow() }
+        renderCombos()
+      }
+      li.append(del)
+    }
+    ul.appendChild(li)
+  }
+}
+$('combo-save').onclick = () => {
+  const list = loadCombos()
+  let name = $('combo-name').value.trim()
+  if (!name) name = `조합 ${list.length + 1}`
+  if (name === interior.preset.name) name += ' (사본)'
+  const next = list.filter(x => x.name !== name)
+  next.push({ name, state: JSON.parse(JSON.stringify(state)) })
+  if (!saveCombos(next)) { alert('이 브라우저에서는 저장할 수 없습니다 (저장소 사용이 막혀 있음).'); return }
+  currentCombo = name
+  changed = false
+  $('combo-name').value = ''
+  renderComboNow()
+  renderCombos()
+}
 
 // ---- 크기·그리기 ----
 function resize() {
@@ -477,15 +1033,25 @@ function resize() {
 }
 window.addEventListener('resize', resize)
 
-buildHouse(FULL_H)
+finishRoom.value = '거실'
+buildHouse()
+placeAll()
+renderCombos()
+renderComboNow()
+hint.textContent = DEFAULT_HINT
 resize()
 setView('oblique')
 renderer.setAnimationLoop(() => {
   controls.update()
+  selectBox?.update()
   renderer.render(scene, camera)
   labelRenderer.render(scene, camera)
 })
-window.__viewer = { scene, camera, controls, floors, select, setView, setWall, setMeasuring, addMeasure, THREE }
+window.__viewer = {
+  scene, camera, controls, floors, furnitureObjs, THREE,
+  get state() { return state }, footprint, hitsWall,
+  selectRoom, selectFurniture, setView, setWall, setMeasuring, addMeasure,
+}
 </script>
 </body>
 </html>

@@ -193,8 +193,33 @@ for i, (name, plan_name, lx, ly) in enumerate(ROOMS):
     bw = max(c[2] for c in cells) - min(c[0] for c in cells)   # 그리는 바닥 칸 기준 외곽 크기
     bd = max(c[3] for c in cells) - min(c[1] for c in cells)
     lx_m, ly_m = m(lx, ly)
+
+    # 이 방에 닿은 벽면: 방 픽셀 바로 옆이 벽인 경계를 이어 선분으로 만든다 (벽 색 칠하기용).
+    R = owner == i
+    faces = []
+    for side, (dy, dx) in {'n': (-1, 0), 's': (1, 0), 'w': (0, -1), 'e': (0, 1)}.items():
+        touch = R & np.roll(np.roll(wall, -dy, 0), -dx, 1)
+        if side in ('n', 's'):
+            for y in range(H):
+                xs_ = np.nonzero(touch[y])[0]
+                for run in np.split(xs_, np.nonzero(np.diff(xs_) > 1)[0] + 1):
+                    if len(run) >= 4:
+                        ey = y if side == 'n' else y + 1
+                        ax, ay = m(run[0], ey)
+                        bx, _ = m(run[-1] + 1, ey)
+                        faces.append([ax, ay, bx, ay, side])
+        else:
+            for x in range(W):
+                ys_ = np.nonzero(touch[:, x])[0]
+                for run in np.split(ys_, np.nonzero(np.diff(ys_) > 1)[0] + 1):
+                    if len(run) >= 4:
+                        ex = x if side == 'w' else x + 1
+                        ax, ay = m(ex, run[0])
+                        _, by = m(ex, run[-1] + 1)
+                        faces.append([ax, ay, ax, by, side])
+
     rooms.append({'name': name, 'planName': plan_name, 'label': [lx_m, ly_m], 'area': round(area, 2),
-                  'size': [round(bw, 2), round(bd, 2)], 'cells': cells})
+                  'size': [round(bw, 2), round(bd, 2)], 'cells': cells, 'wallFaces': faces})
     print(f'{name:6s} {area:5.2f}㎡  {bw:.2f} x {bd:.2f} m (안목, 추정)')
 
 # 바닥판: 방 나눔선·문틈까지 집 안 전체를 덮는 바닥 (방 바닥 아래에 깔린다)

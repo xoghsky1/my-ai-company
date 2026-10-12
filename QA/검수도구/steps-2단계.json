@@ -1,0 +1,61 @@
+[
+ {
+  "name": "01-처음",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); return { 조합: document.getElementById('combo-now').textContent, 벽겹침: hits(), 거실바닥: st().floors['거실'], 아트월: st().artWall } })()"
+ },
+ {
+  "name": "02-위에서보기-가구배치",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.getElementById('view-top').click(); return 'top' })()"
+ },
+ {
+  "name": "03-거실-그레이타일-세이지벽",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.querySelector('[data-tab=finish]').click(); const s = document.getElementById('finish-room'); s.value = '거실'; s.dispatchEvent(new Event('change')); [...document.querySelectorAll('#floor-chips .chip')].find(b => b.textContent.includes('라이트 그레이 타일')).click(); [...document.querySelectorAll('#wall-chips .chip')].find(b => b.textContent.includes('세이지')).click(); return { 거실바닥: st().floors['거실'], 거실벽: st().walls['거실'], 안방바닥: st().floors['안방'], 조합: document.getElementById('combo-now').textContent } })()"
+ },
+ {
+  "name": "04-전체방에적용",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.getElementById('apply-all').click(); return Object.entries(st().floors).map(([k, x]) => k + ':' + x + '/' + st().walls[k]).join(', ') })()"
+ },
+ {
+  "name": "05-아트월켜기",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.getElementById('art-wall').click(); document.getElementById('view-oblique').click(); v.controls.target.set(-1.0, 1.0, 1.6); v.camera.position.set(1.5, 1.6, 1.6); v.controls.update(); return st().artWall })()"
+ },
+ {
+  "name": "06-소파끌어서-벽에붙이기",
+  "dragJs": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.getElementById('view-top').click(); v.controls.update(); const s = st().furniture.sofa; const a = scr(s.at[0], s.at[1]); const b = scr(s.at[0] + 0.6, s.at[1]); return [...a, ...b] })()",
+  "after": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); return { 소파위치: st().furniture.sofa.at, 벽겹침: hits(), 정보: document.getElementById('info').innerText, 조합: document.getElementById('combo-now').textContent } })()"
+ },
+ {
+  "name": "07-R키로돌리기",
+  "key": "r",
+  "after": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); return { 소파방향: st().furniture.sofa.rot, 정보: document.getElementById('info').innerText } })()"
+ },
+ {
+  "name": "08-가구처음자리로",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.querySelector('[data-tab=furniture]').click(); document.getElementById('furniture-reset').click(); return { 소파: st().furniture.sofa, 벽겹침: hits() } })()"
+ },
+ {
+  "name": "09-침대숨기기",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); const cb = [...document.querySelectorAll('#furniture-list input')][0]; cb.click(); return { 침대보임: st().furniture.bed.visible, 화면: v.furnitureObjs.get('bed').visible } })()"
+ },
+ {
+  "name": "10-조합저장",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.querySelector('[data-tab=combo]').click(); document.getElementById('combo-name').value = '그레이 타일안'; document.getElementById('combo-save').click(); return { 목록: document.getElementById('combo-list').innerText, 조합: document.getElementById('combo-now').textContent } })()"
+ },
+ {
+  "name": "11-기본조합불러오기",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); [...document.querySelectorAll('#combo-list li')].find(li => li.textContent.includes('(기본)')).querySelector('button').click(); return { 거실바닥: st().floors['거실'], 아트월: st().artWall, 침대보임: st().furniture.bed.visible, 조합: document.getElementById('combo-now').textContent } })()"
+ },
+ {
+  "name": "12-저장조합다시불러오기",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); [...document.querySelectorAll('#combo-list li')].find(li => li.textContent.includes('그레이 타일안')).querySelector('button').click(); return { 거실바닥: st().floors['거실'], 거실벽: st().walls['거실'], 아트월: st().artWall, 침대보임: st().furniture.bed.visible, 조합: document.getElementById('combo-now').textContent } })()"
+ },
+ {
+  "name": "13-낮춘벽",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.querySelector('[data-tab=view]').click(); document.getElementById('view-oblique').click(); document.getElementById('wall-low').click(); return { 거실바닥: st().floors['거실'], 아트월: st().artWall } })()"
+ },
+ {
+  "name": "14-치수-소파에서아트월",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, 0.3, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hits = () => [...v.furnitureObjs.keys()].filter(id => v.furnitureObjs.get(id).userData.hitsWall); document.getElementById('wall-full').click(); document.getElementById('view-top').click(); v.controls.update(); return 'ready' })()",
+  "wait": 600
+ }
+]

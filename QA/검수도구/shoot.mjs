@@ -59,9 +59,25 @@ for (const step of steps) {
     for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'])
       await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 })
   }
+  if (step.dragJs) {
+    // 페이지에서 [x1, y1, x2, y2] 화면 좌표를 받아 실제 마우스로 끈다
+    const r = await send('Runtime.evaluate', { expression: step.dragJs, returnByValue: true })
+    const [x1, y1, x2, y2] = r.result.result.value
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1, y: y1 })
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: x1, y: y1, button: 'left', buttons: 1, clickCount: 1 })
+    for (let i = 1; i <= 10; i++)
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: x1 + (x2 - x1) * i / 10, y: y1 + (y2 - y1) * i / 10, button: 'left', buttons: 1 })
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: x2, y: y2, button: 'left', buttons: 0, clickCount: 1 })
+    value = { from: [x1, y1], to: [x2, y2] }
+  }
   if (step.key) {
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: step.key, code: step.key, windowsVirtualKeyCode: step.key === 'Escape' ? 27 : 0 })
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: step.key, code: step.key })
+  }
+  await sleep(200)
+  if (step.after) {
+    const r = await send('Runtime.evaluate', { expression: step.after, returnByValue: true, awaitPromise: true })
+    value = { ...(typeof value === 'object' ? value : { value }), after: r.result?.result?.value }
   }
   await sleep(step.wait ?? 800)
   const shot = await send('Page.captureScreenshot', { format: 'png' })
