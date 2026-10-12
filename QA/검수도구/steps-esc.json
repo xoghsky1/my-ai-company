@@ -1,0 +1,10 @@
+[
+  { "name": "e1-재기시작", "js": "document.getElementById('measure-toggle').click(); 'on'" },
+  { "name": "e2-첫점클릭", "click": [830, 520] },
+  { "name": "e3-개수", "js": "(() => { const g = __viewer.scene.children.filter(c => c.type === 'Group'); return g.map(x => x.children.length).join(',') })()" },
+  { "name": "e4-Esc", "key": "Escape" },
+  { "name": "e5-개수", "js": "(() => { const g = __viewer.scene.children.filter(c => c.type === 'Group'); return g.map(x => x.children.length).join(',') })()" },
+  { "name": "e6-두점", "click": [700, 520] },
+  { "name": "e7-두번째", "click": [950, 520] },
+  { "name": "e8-목록", "js": "document.getElementById('measures').innerText" }
+]

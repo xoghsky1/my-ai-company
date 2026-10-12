@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우리집 3D 뷰어</title>
+<style>
+  :root {
+    --bg: #eef0f3;
+    --panel: #ffffff;
+    --line: #dde1e6;
+    --text: #1f2328;
+    --muted: #6b7280;
+    --accent: #2563eb;
+    --accent-soft: #e8efff;
+    --measure: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.5 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    display: grid;
+    grid-template-rows: 48px 1fr;
+    grid-template-columns: 260px 1fr;
+    overflow: hidden;
+  }
+  header {
+    grid-column: 1 / 3;
+    display: flex; align-items: center; gap: 12px;
+    padding: 0 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  .badge {
+    font-size: 12px; padding: 2px 8px; border-radius: 999px;
+    background: #fff4e5; color: #9a5b00; border: 1px solid #ffd8a8;
+  }
+  aside {
+    background: var(--panel);
+    border-right: 1px solid var(--line);
+    padding: 12px 14px;
+    overflow-y: auto;
+  }
+  aside h2 { font-size: 12px; color: var(--muted); margin: 14px 0 6px; font-weight: 600; }
+  aside h2:first-child { margin-top: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; }
+  button {
+    font: inherit; font-size: 13px;
+    padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--line); background: #f8f9fb; color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { border-color: #b9c1cc; }
+  button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  label.check { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; }
+  .divider { border-top: 1px solid var(--line); margin: 16px 0 4px; }
+  #info .empty { color: var(--muted); font-size: 13px; }
+  #info .room-name { font-weight: 700; font-size: 15px; }
+  #info .sub { color: var(--muted); font-size: 12px; }
+  #measures { list-style: none; padding: 0; margin: 6px 0 0; }
+  #measures li { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--line); font-variant-numeric: tabular-nums; }
+  #measures li b { color: var(--measure); }
+  #stage { position: relative; overflow: hidden; }
+  #stage canvas { display: block; }
+  #hint {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    background: rgba(255,255,255,.9); border: 1px solid var(--line);
+    padding: 4px 12px; border-radius: 999px; font-size: 12px; color: var(--muted);
+    pointer-events: none; white-space: nowrap;
+  }
+  #hint.measure { color: var(--measure); border-color: #f3b4b6; }
+  .room-label {
+    background: #fff; border: 1px solid var(--line); border-radius: 8px;
+    padding: 1px 8px; font-size: 13px; font-weight: 700; color: var(--text);
+    box-shadow: 0 1px 2px rgba(0,0,0,.08); white-space: nowrap; pointer-events: none;
+  }
+  .measure-label {
+    color: var(--measure); font-size: 13px; font-weight: 700;
+    background: rgba(255,255,255,.85); padding: 0 4px; border-radius: 4px; pointer-events: none;
+    font-variant-numeric: tabular-nums;
+    margin-top: -26px; /* 선 위로 띄워 방 이름표와 겹치지 않게 */
+    border: 1px solid #f3b4b6;
+  }
+  #error {
+    display: none; position: absolute; inset: 0; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; color: var(--text); background: var(--bg);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">우리집 3D 뷰어</h1>
+  <span class="badge">치수는 평면도 기반 추정 · 천장고 2.3m 추정</span>
+</header>
+
+<aside>
+  <h2>시점</h2>
+  <div class="row">
+    <button id="view-oblique" class="on">비스듬히 보기</button>
+    <button id="view-top">위에서 보기</button>
+    <button id="view-reset">처음 위치로</button>
+  </div>
+
+  <h2>벽 높이</h2>
+  <div class="row">
+    <button id="wall-full" class="on">전체 2.3m</button>
+    <button id="wall-low">낮춘 벽 1.0m</button>
+  </div>
+
+  <h2>치수 재기</h2>
+  <div class="row">
+    <button id="measure-toggle">재기 시작</button>
+    <button id="measure-clear">지우기</button>
+  </div>
+
+  <h2>표시</h2>
+  <label class="check"><input type="checkbox" id="show-grid" checked> 1m 격자</label>
+  <label class="check"><input type="checkbox" id="show-labels" checked> 방 이름</label>
+
+  <div class="divider"></div>
+  <h2>정보</h2>
+  <div id="info"><div class="empty">방 바닥을 클릭하면 정보가 나옵니다.</div></div>
+  <ul id="measures"></ul>
+</aside>
+
+<main id="stage">
+  <div id="hint">왼쪽 드래그 회전 · 휠 확대 · 오른쪽 드래그 이동</div>
+  <div id="error"></div>
+</main>
+
+<script src="../../디자이너/3d-모델/model.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js'
+
+const stage = document.getElementById('stage')
+const model = window.APT_MODEL
+if (!model) {
+  const err = document.getElementById('error')
+  err.style.display = 'flex'
+  err.textContent = '모델 데이터(디자이너/3d-모델/model.js)를 찾지 못했습니다. 폴더 구조를 그대로 두고 열어 주세요.'
+  throw new Error('APT_MODEL missing')
+}
+document.getElementById('title').textContent = model.title
+
+// ---- 색 (디자이너 화면 디자인 기준) ----
+const COLORS = {
+  bg: 0xeef0f3, wall: 0xf7f5f0, wallTop: 0x9a9a9a,
+  glass: 0x9fc6e0, door: 0x8b6b4a, louver: 0xa8a8a8,
+  select: 0x3b82f6, measure: 0xe5484d,
+}
+const FLOOR = {
+  '거실': 0xd9c3a5, '주방/식당': 0xd9c3a5, '현관': 0xd9c3a5, '복도': 0xd9c3a5,
+  '안방': 0xe3d2b8, '아기방': 0xe3d2b8, '옷방': 0xe3d2b8,
+  '욕실1': 0xc9d3d8, '욕실2': 0xc9d3d8,
+  '다용도실': 0xcfcfc9, '발코니': 0xcfcfc9, '실외기실': 0xcfcfc9,
+}
+const FULL_H = model.wallHeight
+const LOW_H = 1.0
+
+// 평면도 좌표(x 오른쪽, y 아래쪽, m) → 3D (x, z), 집 가운데를 원점으로
+const CX = model.extent[0] / 2
+const CZ = model.extent[1] / 2
+const px = x => x - CX
+const pz = y => y - CZ
+
+// ---- 기본 장면 ----
+const scene = new THREE.Scene()
+scene.background = new THREE.Color(COLORS.bg)
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.02, 200)
+const renderer = new THREE.WebGLRenderer({ antialias: true })
+renderer.setPixelRatio(window.devicePixelRatio)
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
+stage.appendChild(renderer.domElement)
+
+const labelRenderer = new CSS2DRenderer()
+labelRenderer.domElement.style.position = 'absolute'
+labelRenderer.domElement.style.top = '0'
+labelRenderer.domElement.style.pointerEvents = 'none'
+stage.appendChild(labelRenderer.domElement)
+
+const controls = new OrbitControls(camera, renderer.domElement)
+controls.enableDamping = true
+controls.dampingFactor = 0.08
+controls.minDistance = 0.3
+controls.maxDistance = 40
+controls.screenSpacePanning = true
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xd8d4cc, 1.6))
+const sun = new THREE.DirectionalLight(0xffffff, 1.4)
+sun.position.set(-5, 12, 7)
+sun.castShadow = true
+sun.shadow.mapSize.set(2048, 2048)
+Object.assign(sun.shadow.camera, { left: -8, right: 8, top: 8, bottom: -8, near: 1, far: 40 })
+sun.shadow.bias = -0.0005
+scene.add(sun)
+
+// ---- 격자 (1m, 10cm 보조선) ----
+const grid = new THREE.Group()
+const minor = new THREE.GridHelper(14, 140, 0xbfc5cc, 0xbfc5cc)
+minor.material.transparent = true
+minor.material.opacity = 0.25
+const major = new THREE.GridHelper(14, 14, 0x7d8590, 0x7d8590)
+major.material.transparent = true
+major.material.opacity = 0.55
+minor.position.y = 0.006
+major.position.y = 0.007
+grid.add(minor, major)
+scene.add(grid)
+
+// ---- 집 ----
+const house = new THREE.Group()
+scene.add(house)
+const pickables = []   // 치수 재기 대상 (바닥·벽)
+const floors = []      // 방 선택 대상
+
+function box(x0, y0, x1, y1, bottom, top, material) {
+  const w = Math.abs(x1 - x0), d = Math.abs(y1 - y0), h = top - bottom
+  if (w <= 0 || d <= 0 || h <= 0) return null
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material)
+  mesh.position.set(px((x0 + x1) / 2), bottom + h / 2, pz((y0 + y1) / 2))
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  house.add(mesh)
+  return mesh
+}
+
+const wallSide = new THREE.MeshStandardMaterial({ color: COLORS.wall, roughness: 0.9 })
+const wallTop = new THREE.MeshStandardMaterial({ color: COLORS.wallTop, roughness: 0.9 })
+const wallMats = [wallSide, wallSide, wallTop, wallSide, wallSide, wallSide]
+const glassMat = new THREE.MeshPhysicalMaterial({ color: COLORS.glass, transparent: true, opacity: 0.35, roughness: 0.1 })
+const doorMat = new THREE.MeshStandardMaterial({ color: COLORS.door, roughness: 0.7 })
+const louverMat = new THREE.MeshStandardMaterial({ color: COLORS.louver, roughness: 0.6 })
+const baseFloorMat = new THREE.MeshStandardMaterial({ color: 0xd2bd9f, roughness: 0.9 })
+
+function quads(cells, y) {
+  const pos = [], idx = []
+  for (const [x0, y0, x1, y1] of cells) {
+    const i = pos.length / 3
+    pos.push(px(x0), y, pz(y0), px(x1), y, pz(y0), px(x1), y, pz(y1), px(x0), y, pz(y1))
+    idx.push(i, i + 2, i + 1, i, i + 3, i + 2)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+  g.setIndex(idx)
+  g.computeVertexNormals()
+  return g
+}
+
+const labels = []
+function buildHouse(wallH) {
+  for (const child of [...house.children]) {
+    house.remove(child)
+    child.geometry?.dispose()
+  }
+  pickables.length = 0
+  floors.length = 0
+  labels.length = 0
+
+  // 바닥판 (방 사이 문턱·경계까지 집 안 전체)
+  if (model.base) {
+    const baseMesh = new THREE.Mesh(quads(model.base, 0.0), baseFloorMat)
+    baseMesh.receiveShadow = true
+    house.add(baseMesh)
+    pickables.push(baseMesh)
+  }
+
+  // 방 바닥
+  for (const room of model.rooms) {
+    const mat = new THREE.MeshStandardMaterial({ color: FLOOR[room.name] ?? 0xd9c3a5, roughness: 0.85 })
+    const mesh = new THREE.Mesh(quads(room.cells, 0.002), mat)
+    mesh.receiveShadow = true
+    mesh.userData.room = room
+    house.add(mesh)
+    floors.push(mesh)
+    pickables.push(mesh)
+
+    const el = document.createElement('div')
+    el.className = 'room-label'
+    el.textContent = room.name
+    const label = new CSS2DObject(el)
+    label.position.set(px(room.label[0]), 0.15, pz(room.label[1]))
+    label.visible = document.getElementById('show-labels').checked
+    house.add(label)
+    labels.push(label)
+  }
+
+  // 벽
+  for (const [x0, y0, x1, y1] of model.walls) {
+    const m = box(x0, y0, x1, y1, 0, wallH, wallMats)
+    if (m) pickables.push(m)
+  }
+
+  // 창·문: 창틀 아래와 윗선 위는 벽으로 채우고, 사이는 유리(문은 비움)
+  for (const o of model.openings) {
+    const [x0, y0, x1, y1] = o.rect
+    const sill = Math.min(o.sill, wallH)
+    const head = Math.min(o.head, wallH)
+    if (sill > 0) pickables.push(box(x0, y0, x1, y1, 0, sill, wallMats))
+    if (head < wallH) pickables.push(box(x0, y0, x1, y1, head, wallH, wallMats))
+    if (head <= sill) continue
+    const horizontal = Math.abs(x1 - x0) >= Math.abs(y1 - y0)
+    const mid = horizontal ? (y0 + y1) / 2 : (x0 + x1) / 2
+    const t = 0.02
+    const thin = horizontal ? [x0, mid - t, x1, mid + t] : [mid - t, y0, mid + t, y1]
+    if (o.kind === 'window') {
+      const g = box(...thin, sill, head, glassMat)
+      if (g) g.castShadow = false
+    } else if (o.kind === 'louver') {
+      for (let z = sill + 0.1; z < head; z += 0.15) box(...thin, z, Math.min(z + 0.04, head), louverMat)
+    } else if (o.kind === 'door') {
+      box(x0, y0, x1, y1, 0, 0.012, doorMat)
+    }
+  }
+  if (selected) select(floors.find(f => f.userData.room.name === selected.userData.room.name) ?? null)
+}
+
+// ---- 시점 ----
+function setView(kind) {
+  const span = Math.max(model.extent[0], model.extent[1])
+  controls.target.set(0, 0, 0)
+  if (kind === 'top') camera.position.set(0, span * 1.55, 0.001)
+  else camera.position.set(-span * 0.35, span * 1.0, span * 0.95)
+  camera.lookAt(controls.target)
+  controls.update()
+  document.getElementById('view-oblique').classList.toggle('on', kind !== 'top')
+  document.getElementById('view-top').classList.toggle('on', kind === 'top')
+}
+document.getElementById('view-oblique').onclick = () => setView('oblique')
+document.getElementById('view-top').onclick = () => setView('top')
+document.getElementById('view-reset').onclick = () => setView('oblique')
+
+// ---- 벽 높이 ----
+function setWall(h) {
+  buildHouse(h)
+  document.getElementById('wall-full').classList.toggle('on', h === FULL_H)
+  document.getElementById('wall-low').classList.toggle('on', h === LOW_H)
+}
+document.getElementById('wall-full').onclick = () => setWall(FULL_H)
+document.getElementById('wall-low').onclick = () => setWall(LOW_H)
+
+// ---- 표시 ----
+document.getElementById('show-grid').onchange = e => { grid.visible = e.target.checked }
+document.getElementById('show-labels').onchange = e => { for (const l of labels) l.visible = e.target.checked }
+
+// ---- 방 선택 ----
+const info = document.getElementById('info')
+let selected = null
+let overlay = null
+const overlayMat = new THREE.MeshBasicMaterial({ color: COLORS.select, transparent: true, opacity: 0.25, depthWrite: false })
+function select(mesh) {
+  if (overlay) { scene.remove(overlay); overlay.geometry.dispose(); overlay = null }
+  selected = mesh
+  if (!mesh) {
+    info.innerHTML = '<div class="empty">방 바닥을 클릭하면 정보가 나옵니다.</div>'
+    return
+  }
+  const room = mesh.userData.room
+  overlay = new THREE.Mesh(quads(room.cells, 0.012), overlayMat)
+  scene.add(overlay)
+  const planName = room.planName && room.planName !== room.name ? `<div class="sub">평면도 이름: ${room.planName}</div>` : ''
+  info.innerHTML = `
+    <div class="room-name">${room.name}</div>
+    <div>약 ${room.size[0].toFixed(1)} × ${room.size[1].toFixed(1)} m <span class="sub">(추정)</span></div>
+    <div class="sub">바닥 면적 약 ${room.area.toFixed(1)}㎡ (추정)</div>
+    ${planName}`
+}
+
+// ---- 치수 재기 ----
+let measuring = false
+let firstPoint = null
+let firstMarker = null
+const measureGroup = new THREE.Group()
+scene.add(measureGroup)
+const measureMat = new THREE.MeshBasicMaterial({ color: COLORS.measure })
+const measureList = document.getElementById('measures')
+const hint = document.getElementById('hint')
+const DEFAULT_HINT = '왼쪽 드래그 회전 · 휠 확대 · 오른쪽 드래그 이동'
+
+function marker(p) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(0.03, 16, 12), measureMat)
+  m.position.copy(p)
+  measureGroup.add(m)
+  return m
+}
+function setMeasuring(on) {
+  measuring = on
+  cancelFirst()
+  const btn = document.getElementById('measure-toggle')
+  btn.classList.toggle('on', on)
+  btn.textContent = on ? '재기 끝내기' : '재기 시작'
+  hint.classList.toggle('measure', on)
+  hint.textContent = on ? '두 점을 차례로 클릭하세요 · Esc: 첫 점 취소' : DEFAULT_HINT
+  renderer.domElement.style.cursor = on ? 'crosshair' : ''
+}
+function cancelFirst() {
+  if (firstMarker) { measureGroup.remove(firstMarker); firstMarker.geometry.dispose() }
+  firstMarker = null
+  firstPoint = null
+}
+function addMeasure(a, b) {
+  const dist = a.distanceTo(b)
+  const dir = new THREE.Vector3().subVectors(b, a)
+  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, dist, 8), measureMat)
+  rod.position.copy(a).addScaledVector(dir, 0.5)
+  rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize())
+  measureGroup.add(rod)
+  marker(b)
+  const el = document.createElement('div')
+  el.className = 'measure-label'
+  el.textContent = `${dist.toFixed(2)} m`
+  const label = new CSS2DObject(el)
+  label.position.copy(rod.position)
+  measureGroup.add(label)
+  const n = measureList.children.length + 1
+  const li = document.createElement('li')
+  li.innerHTML = `<span>치수 ${n}</span><b>${dist.toFixed(2)} m</b>`
+  measureList.appendChild(li)
+}
+document.getElementById('measure-toggle').onclick = () => setMeasuring(!measuring)
+document.getElementById('measure-clear').onclick = () => {
+  firstMarker = null
+  firstPoint = null
+  for (const c of [...measureGroup.children]) {
+    measureGroup.remove(c)
+    c.geometry?.dispose()
+    if (c.element) c.element.remove()
+  }
+  measureList.innerHTML = ''
+}
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && measuring) cancelFirst() })
+
+// ---- 클릭 (드래그와 구분) ----
+const ray = new THREE.Raycaster()
+const ndc = new THREE.Vector2()
+let down = null
+renderer.domElement.addEventListener('pointerdown', e => { if (e.button === 0) down = { x: e.clientX, y: e.clientY } })
+renderer.domElement.addEventListener('pointerup', e => {
+  if (e.button !== 0 || !down) return
+  const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y)
+  down = null
+  if (moved > 4) return
+  const r = renderer.domElement.getBoundingClientRect()
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1)
+  ray.setFromCamera(ndc, camera)
+  if (measuring) {
+    const hit = ray.intersectObjects(pickables.filter(Boolean), false)[0]
+    if (!hit) return
+    const p = hit.point.clone()
+    if (!firstPoint) { firstPoint = p; firstMarker = marker(p) }
+    else { addMeasure(firstPoint, p); firstMarker = null; firstPoint = null }
+    return
+  }
+  const hit = ray.intersectObjects(floors, false)[0]
+  select(hit ? hit.object : null)
+})
+
+// ---- 크기·그리기 ----
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight
+  renderer.setSize(w, h)
+  labelRenderer.setSize(w, h)
+  camera.aspect = w / h
+  camera.updateProjectionMatrix()
+}
+window.addEventListener('resize', resize)
+
+buildHouse(FULL_H)
+resize()
+setView('oblique')
+renderer.setAnimationLoop(() => {
+  controls.update()
+  renderer.render(scene, camera)
+  labelRenderer.render(scene, camera)
+})
+window.__viewer = { scene, camera, controls, floors, select, setView, setWall, setMeasuring, addMeasure, THREE }
+</script>
+</body>
+</html>
