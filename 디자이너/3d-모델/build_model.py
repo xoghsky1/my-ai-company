@@ -222,6 +222,36 @@ for i, (name, plan_name, lx, ly) in enumerate(ROOMS):
                   'size': [round(bw, 2), round(bd, 2)], 'cells': cells, 'wallFaces': faces})
     print(f'{name:6s} {area:5.2f}㎡  {bw:.2f} x {bd:.2f} m (안목, 추정)')
 
+# 창·문마다 맞닿은 방과 그 방 쪽 면 (창턱·창 윗부분 벽 칠하기용).
+# side는 wallFaces와 같다: 벽(창)이 방의 어느 쪽에 있는지.
+def room_along(y0, y1, x0, x1):
+    """주어진 띠 안에서 가장 많은 방 번호와 그 방이 차지한 구간."""
+    band = owner[max(0, y0):min(H, y1), max(0, x0):min(W, x1)]
+    ids, counts = np.unique(band[band >= 0], return_counts=True)
+    if len(ids) == 0 or counts.max() < 4:
+        return None
+    return int(ids[counts.argmax()])
+
+
+for o, (x0, y0, x1, y1, *_rest) in zip(openings, OPENINGS):
+    faces = []
+    if (x1 - x0) >= (y1 - y0):
+        for ry0, ry1, ey, side in ((y0 - 4, y0 - 1, y0, 's'), (y1 + 1, y1 + 4, y1, 'n')):
+            r = room_along(ry0, ry1, x0, x1)
+            if r is not None:
+                ax, ay = m(x0, ey)
+                bx, _ = m(x1, ey)
+                faces.append({'room': ROOMS[r][0], 'line': [ax, ay, bx, ay, side]})
+    else:
+        for rx0, rx1, ex, side in ((x0 - 4, x0 - 1, x0, 'e'), (x1 + 1, x1 + 4, x1, 'w')):
+            r = room_along(y0, y1, rx0, rx1)
+            if r is not None:
+                ax, ay = m(ex, y0)
+                _, by = m(ex, y1)
+                faces.append({'room': ROOMS[r][0], 'line': [ax, ay, ax, by, side]})
+    o['faces'] = faces
+    print(f"{o['name']}: " + ', '.join(f"{f['room']}({f['line'][4]})" for f in faces))
+
 # 바닥판: 방 나눔선·문틈까지 집 안 전체를 덮는 바닥 (방 바닥 아래에 깔린다)
 inside = env.copy()
 inside[:15, :] = False

@@ -1,0 +1,37 @@
+[
+ {
+  "name": "b1-처음-가려진이름표",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); return 'ok' })()",
+  "after": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); return { 가려진이름표: hidden() } })()"
+ },
+ {
+  "name": "b2-거실안에서-아트월쪽",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); v.controls.target.set(-1.0, 1.0, 1.6); v.camera.position.set(1.5, 1.6, 1.6); v.controls.update(); return 'ok' })()",
+  "wait": 600,
+  "after": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); return { 가려진이름표: hidden() } })()"
+ },
+ {
+  "name": "b3-거실창-창턱벽색",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); document.querySelector('[data-tab=finish]').click(); const s = document.getElementById('finish-room'); s.value = '거실'; s.dispatchEvent(new Event('change')); [...document.querySelectorAll('#wall-chips .chip')].find(b => b.textContent.includes('라이트 그레이')).click(); const cx = M.extent[0]/2, cz = M.extent[1]/2; v.camera.position.set(4.7 - cx, 1.5, 5.6 - cz); v.controls.target.set(4.7 - cx, 0.6, 7.9 - cz); v.controls.update(); return st().walls['거실'] })()",
+  "wait": 600
+ },
+ {
+  "name": "b4-비스듬히-소파끌기정확도",
+  "dragJs": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); document.getElementById('view-oblique').click(); v.controls.update(); const s = st().furniture.sofa; window.__grab = scr(s.at[0], s.at[1], 0.52); const end = scr(s.at[0] - 0.5, s.at[1] + 0.3, 0.52); window.__end = end; return [...window.__grab, ...end] })()",
+  "after": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); const s = st().furniture.sofa; const now = scr(s.at[0], s.at[1], 0.52); return { 소파: s.at, 마우스끝: window.__end.map(n => Math.round(n)), 소파중심화면: now.map(n => Math.round(n)), 오차px: Math.round(Math.hypot(now[0] - window.__end[0], now[1] - window.__end[1])) } })()"
+ },
+ {
+  "name": "b5-아기침대를-수납장위로",
+  "dragJs": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); document.getElementById('view-top').click(); v.controls.update(); const c = st().furniture.crib; const a = scr(c.at[0], c.at[1], 0.4); const b = scr(7.0, 6.6, 0.4); return [...a, ...b] })()",
+  "after": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); document.querySelector('[data-tab=furniture]').click(); return { 아기침대: st().furniture.crib.at, 아기침대겹침: v.hitsFurniture('crib'), 수납장겹침: v.hitsFurniture('dresser'), 정보: document.getElementById('info').innerText, 목록: document.getElementById('furniture-list').innerText } })()"
+ },
+ {
+  "name": "b6-처음자리로",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); document.getElementById('furniture-reset').click(); return { 겹침: Object.keys(st().furniture).filter(id => v.hitsFurniture(id).length || v.hitsWall(id)) } })()"
+ },
+ {
+  "name": "b7-낮춘벽-창턱벽색유지",
+  "js": "(() => { const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect(); const scr = (x, y, h = 0.3) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera); return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] }; const st = () => v.state; const hidden = () => v.labels.filter(l => l.userData.hidden).map(l => l.element.textContent); document.querySelector('[data-tab=view]').click(); document.getElementById('wall-low').click(); return st().walls['거실'] })()",
+  "wait": 600
+ }
+]
