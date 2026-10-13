@@ -1,0 +1,57 @@
+[
+ {
+  "name": "01-낮",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; v.loadProposal('A'); document.querySelector('.tabs button[data-tab=light]').click(); const cx = APT_MODEL.extent[0]/2, cz = APT_MODEL.extent[1]/2; v.setWall(2.3); v.camera.position.set(5.2 - cx, 9.5, 12.5 - cz); v.controls.target.set(5.2 - cx, 0, 5.6 - cz); v.controls.update();return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1000
+ },
+ {
+  "name": "02-밤-기본",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' })); const cx = APT_MODEL.extent[0]/2, cz = APT_MODEL.extent[1]/2; v.setWall(2.3); v.camera.position.set(5.2 - cx, 9.5, 12.5 - cz); v.controls.target.set(5.2 - cx, 0, 5.6 - cz); v.controls.update();return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1500
+ },
+ {
+  "name": "03-밤-특화-일상",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; $('light-special').click(); v.applyScene('일상'); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1500
+ },
+ {
+  "name": "04-밤-특화-휴식",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; v.applyScene('휴식'); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1500
+ },
+ {
+  "name": "05-밤-특화-영화",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; v.applyScene('영화'); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1500
+ },
+ {
+  "name": "06-밤-특화-밤수유",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; v.applyScene('밤 수유'); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1500
+ },
+ {
+  "name": "07-나란히비교",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; v.applyScene('휴식'); $('light-compare').click(); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) , 이름표: !$('compare-labels').hidden} })()",
+  "wait": 1500
+ },
+ {
+  "name": "08-거실걷기-기본",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; $('light-compare').click(); $('light-basic').click(); v.walkStart(); Object.assign(v.walk, { x: 5.6, y: 4.6, yaw: Math.PI / 2, pitch: -0.05 }); return { 천장: true } })()",
+  "wait": 1500
+ },
+ {
+  "name": "09-거실걷기-특화휴식",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; $('light-special').click(); v.applyScene('휴식'); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) } })()",
+  "wait": 1500
+ },
+ {
+  "name": "10-방끄기·밝기",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; v.walkEnd(); const cb = [...$('light-rooms').querySelectorAll('label')].find(l => l.textContent.includes('안방')).querySelector('input'); cb.click(); const off = +v.roomLights.find(r => r.name === '안방').main.intensity.toFixed(2); $('light-dim').value = 30; $('light-dim').dispatchEvent(new Event('input')); return { 안방끔: off, 장면: L.scene, 밝기표시: $('light-dim-v').textContent } })()",
+  "wait": 600
+ },
+ {
+  "name": "11-낮으로",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const L = v.light; window.dispatchEvent(new KeyboardEvent('keydown', { key: 'n' })); return { 밤: L.night, 방식: L.mode, 장면: L.scene, 비교: L.compare, 배경: '#' + v.scene.background.getHexString(), 거실방등: +v.roomLights.find(r => r.name === '거실').main.intensity.toFixed(2), 거실간접: +(v.roomLights.find(r => r.name === '거실').cove?.intensity ?? 0).toFixed(2), 아기방간접: +(v.roomLights.find(r => r.name === '아기방').cove?.intensity ?? 0).toFixed(2) , 비교이름표숨김: $('compare-labels').hidden} })()",
+  "wait": 800
+ }
+]
