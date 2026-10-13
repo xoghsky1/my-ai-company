@@ -1,0 +1,59 @@
+[
+ {
+  "name": "01-시작",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); v.loadProposal('A'); v.setWall(1.0); document.getElementById('view-oblique').click(); v.controls.update(); const cam0 = v.camera.position.toArray().map(n => +n.toFixed(2)); window.__cam0 = cam0; $('walk-toggle').click(); return { 걷는중: !!v.walk, 위치: w(), 시야각: v.camera.fov, 버튼: $('walk-toggle').textContent, 안내: $('hint').textContent, 벽: document.getElementById('wall-full').classList.contains('on') } })()",
+  "wait": 800
+ },
+ {
+  "name": "02-앞으로",
+  "js": "(async () => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); for (const k of [\"w\"]) v.walkKeys.add(k); await new Promise(r => setTimeout(r, 1000)); v.walkKeys.clear(); await new Promise(r => setTimeout(r, 100)); return w() })()",
+  "wait": 600
+ },
+ {
+  "name": "03-빨리",
+  "js": "(async () => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); for (const k of [\"w\", \"shift\"]) v.walkKeys.add(k); await new Promise(r => setTimeout(r, 500)); v.walkKeys.clear(); await new Promise(r => setTimeout(r, 100)); return w() })()",
+  "wait": 600
+ },
+ {
+  "name": "04-아기방-공기청정기앞",
+  "js": "(async () => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); for (const k of [\"w\"]) v.walkKeys.add(k); await new Promise(r => setTimeout(r, 3000)); v.walkKeys.clear(); await new Promise(r => setTimeout(r, 100)); return w() })()",
+  "wait": 600
+ },
+ {
+  "name": "05-거실창에막힘",
+  "js": "(async () => { const v = __viewer; Object.assign(v.walk, { x: 5.17, y: 7.15, yaw: Math.PI / 2, pitch: 0 }); v.walkKeys.add('w'); await new Promise(r => setTimeout(r, 2500)); v.walkKeys.clear(); return { x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room } })()",
+  "wait": 800
+ },
+ {
+  "name": "05b-발코니로나가기",
+  "js": "(async () => { const v = __viewer; Object.assign(v.walk, { x: 2.75, y: 7.59, yaw: Math.PI / 2, pitch: 0 }); v.walkKeys.add('w'); await new Promise(r => setTimeout(r, 1500)); v.walkKeys.clear(); return { x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room } })()",
+  "wait": 800
+ },
+ {
+  "name": "06-둘러보기",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); const c = document.querySelector('#stage canvas').getBoundingClientRect(); const yaw0 = v.walk.yaw; const ev = (t, x) => (t === 'pointerdown' ? document.querySelector('#stage canvas') : window).dispatchEvent(new PointerEvent(t, { clientX: x, clientY: c.top + c.height / 2, button: 0, bubbles: true })); ev('pointerdown', c.left + 500); ev('pointermove', c.left + 860); ev('pointerup', c.left + 860); return { 돌아간각도: Math.round((v.walk.yaw - yaw0) * 180 / Math.PI) } })()",
+  "wait": 800
+ },
+ {
+  "name": "07-가구에막힘",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); const s = v.state.furniture.sofa; const [a0, b0, a1, b1] = v.footprint('sofa'); v.walk.x = a0 - 0.6; v.walk.y = (b0 + b1) / 2; v.walk.yaw = 0; v.walk.pitch = 0; window.__sofa = [a0, b0, a1, b1]; return { 소파: [a0, b0, a1, b1].map(n => +n.toFixed(2)), 출발: w() } })()"
+ },
+ {
+  "name": "08-가구에막힘-결과",
+  "js": "(async () => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); for (const k of [\"w\"]) v.walkKeys.add(k); await new Promise(r => setTimeout(r, 2000)); v.walkKeys.clear(); await new Promise(r => setTimeout(r, 100)); return w() })()"
+ },
+ {
+  "name": "09-아이눈높이",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); $('eye-child').click(); return { 눈: +v.camera.position.y.toFixed(2), 버튼: $('eye-child').className } })()",
+  "wait": 800
+ },
+ {
+  "name": "10-끝내기",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); $('eye-adult').click(); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); const cam = v.camera.position.toArray().map(n => +n.toFixed(2)); return { 걷는중: !!v.walk, 시점복귀: JSON.stringify(cam) === JSON.stringify(window.__cam0), 시야각: v.camera.fov, 낮은벽복귀: document.getElementById('wall-low').classList.contains('on'), 안내: $('hint').textContent, 버튼: $('walk-toggle').textContent } })()",
+  "wait": 800
+ },
+ {
+  "name": "11-가구끌기정상",
+  "js": "(() => { const v = __viewer; const $ = id => document.getElementById(id); const w = () => v.walk && ({ x: +v.walk.x.toFixed(2), y: +v.walk.y.toFixed(2), 방: v.walk.room, 눈: +v.camera.position.y.toFixed(2) }); return { 컨트롤: v.controls.enabled } })()"
+ }
+]

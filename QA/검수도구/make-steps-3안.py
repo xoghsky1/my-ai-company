@@ -28,11 +28,11 @@ for pid in ['A', 'B', 'C']:
     steps.append({'name': f'{pid}-2-비스듬히', 'js': run(f"{OBL} return '{pid}'"), 'wait': 1000})
     # 거실 눈높이: 주방 쪽 위에서 거실 창을 바라봄 (PM 토론 요청)
     EYE = ("const cx = APT_MODEL.extent[0]/2, cz = APT_MODEL.extent[1]/2;"
-           " __viewer.camera.position.set(4.7 - cx, 1.55, 3.6 - cz); __viewer.controls.target.set(4.7 - cx, 0.7, 7.2 - cz); __viewer.controls.update();")
+           " __viewer.camera.position.set(5.17 - cx, 1.55, 3.96 - cz); __viewer.controls.target.set(5.17 - cx, 0.7, 7.92 - cz); __viewer.controls.update();")
     steps.append({'name': f'{pid}-3-거실눈높이', 'js': run(f"{EYE} return '{pid}'"), 'wait': 1000})
     # 침실 쪽: 안방·아기방을 위에서 비스듬히
     BED = ("const cx = APT_MODEL.extent[0]/2, cz = APT_MODEL.extent[1]/2;"
-           " __viewer.camera.position.set(4.6 - cx, 6.5, 9.6 - cz); __viewer.controls.target.set(4.6 - cx, 0, 6.0 - cz); __viewer.controls.update();")
+           " __viewer.camera.position.set(5.06 - cx, 7.1, 10.56 - cz); __viewer.controls.target.set(5.06 - cx, 0, 6.6 - cz); __viewer.controls.update();")
     steps.append({'name': f'{pid}-4-침실쪽', 'js': run(f"{BED} return '{pid}'"), 'wait': 1000})
 
 (here / 'steps-3안.json').write_text(json.dumps(steps, ensure_ascii=False, indent=1), encoding='utf-8')

@@ -115,6 +115,7 @@
     pointer-events: none; white-space: nowrap;
   }
   #hint.measure { color: var(--measure); border-color: #f3b4b6; }
+  #hint.walk { color: #15803D; border-color: #B7E4C7; }
   .room-label {
     background: #fff; border: 1px solid var(--line); border-radius: 8px;
     padding: 1px 8px; font-size: 13px; font-weight: 700; color: var(--text);
@@ -171,6 +172,13 @@
         <button id="measure-toggle">재기 시작</button>
         <button id="measure-clear">지우기</button>
       </div>
+      <h2>1인칭 걷기</h2>
+      <div class="row"><button id="walk-toggle">걷기 시작</button></div>
+      <div class="row" style="margin-top:6px">
+        <button id="eye-adult" class="on">어른 1.6m</button>
+        <button id="eye-child">아이 1.0m</button>
+      </div>
+      <div class="note">W/A/S/D·방향키로 걷고, 마우스를 끌어 둘러봅니다. Shift: 빨리</div>
       <h2>표시</h2>
       <label class="check"><input type="checkbox" id="show-grid" checked> 1m 격자</label>
       <label class="check"><input type="checkbox" id="show-labels" checked> 방 이름</label>
@@ -996,6 +1004,7 @@ function showFurnitureInfo() {
 
 // ---- 시점 ----
 function setView(kind) {
+  walkEnd()
   const span = Math.max(model.extent[0], model.extent[1])
   controls.target.set(0, 0, 0)
   if (kind === 'top') camera.position.set(0, span * 1.55, 0.001)
@@ -1099,6 +1108,12 @@ window.addEventListener('keydown', e => {
     if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); return }
   }
   if (e.target.tagName === 'INPUT') return
+  if (walk) {
+    const k = e.key.toLowerCase()
+    if (e.key === 'Escape') walkEnd()
+    else if (WALK_KEYS.has(k) && !e.ctrlKey && !e.metaKey) { walkKeys.add(k); e.preventDefault() }
+    return
+  }
   if (e.key === 'Escape' && measuring) cancelFirst()
   if ((e.key === 'r' || e.key === 'R') && selectedFurniture) rotateSelected()
 })
@@ -1125,6 +1140,7 @@ let drag = null
 stage.addEventListener('pointerdown', e => {
   if (e.button !== 0 || e.target !== renderer.domElement) return
   down = { x: e.clientX, y: e.clientY }
+  if (walk) { look = { x: e.clientX, y: e.clientY, yaw: walk.yaw, pitch: walk.pitch }; return }
   if (measuring) return
   setRay(e)
   const hit = furnitureHit()
@@ -1138,6 +1154,11 @@ stage.addEventListener('pointerdown', e => {
   selectFurniture(g)
 }, true)
 window.addEventListener('pointermove', e => {
+  if (look && walk) {
+    walk.yaw = look.yaw + (e.clientX - look.x) * WALK.look
+    walk.pitch = Math.max(WALK.pitchMin, Math.min(WALK.pitchMax, look.pitch - (e.clientY - look.y) * WALK.look))
+    return
+  }
   if (!drag) return
   setRay(e)
   const p = new THREE.Vector3()
@@ -1151,6 +1172,7 @@ window.addEventListener('pointermove', e => {
 })
 window.addEventListener('pointerup', e => {
   if (e.button !== 0) return
+  look = null
   if (drag) {
     if (drag.moved) {
       // 끌기 한 번 = 되돌리기 한 번 (잡기 직전 상태를 쌓는다)
@@ -1184,6 +1206,111 @@ window.addEventListener('pointerup', e => {
   if (hit) selectRoom(hit.object)
   else { selectRoom(null); selectFurniture(null) }
 })
+
+
+// ---- 1인칭 걷기 ----
+// 평면도 좌표(x 오른쪽, y 아래쪽)에서 걷고, 카메라를 눈높이에 둔다. yaw 0 = 오른쪽(+x), 90° = 아래쪽(+y)
+const WALK = { speed: 1.4, radius: 0.2, fov: 60, look: 0.25 * Math.PI / 180, pitchMin: -60 * Math.PI / 180, pitchMax: 45 * Math.PI / 180 }
+let eyeH = 1.6
+let walk = null   // { x, y, yaw, pitch, room, saved }
+let look = null   // 마우스로 둘러보는 중: 누른 곳과 그때의 방향
+const walkKeys = new Set()
+const WALK_KEYS = new Set(['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift'])
+const walkClock = new THREE.Clock()
+
+// 지나갈 수 없는 사각형: 벽, 창·현관문(바닥까지 오는 창은 지나갈 수 있음), 바닥에 놓인 가구
+function walkBlockers() {
+  const rects = model.walls.map(w => w.slice(0, 4))
+  for (const o of model.openings) if (!(o.kind === 'window' && o.sill === 0)) rects.push(o.rect)
+  for (const item of interior.furniture)
+    if (state.furniture[item.id]?.visible && onFloor(item.id)) rects.push(footprint(item.id))
+  return rects
+}
+function blocked(x, y, rects) {
+  const r = WALK.radius
+  return rects.some(([x0, y0, x1, y1]) => {
+    const cx = Math.max(x0, Math.min(x, x1)), cy = Math.max(y0, Math.min(y, y1))
+    return (x - cx) ** 2 + (y - cy) ** 2 < r * r
+  })
+}
+function walkHint() {
+  hint.textContent = `걷는 중 · 지금: ${walk.room ?? '집 밖'} · W/A/S/D 걷기 · 드래그 둘러보기 · Shift 빨리 · Esc 끝내기`
+}
+function placeWalkCamera() {
+  const { x, y, yaw, pitch } = walk
+  camera.position.set(px(x), eyeH, pz(y))
+  camera.lookAt(px(x) + Math.cos(pitch) * Math.cos(yaw), eyeH + Math.sin(pitch), pz(y) + Math.cos(pitch) * Math.sin(yaw))
+}
+function walkStart() {
+  if (walk) return
+  setMeasuring(false)
+  const rects = walkBlockers()
+  // 보던 화면 가운데가 집 안 빈 바닥이면 거기서, 아니면 현관에서 거실 쪽(아래)을 보고 시작
+  let x = controls.target.x + CX, y = controls.target.z + CZ
+  const dir = new THREE.Vector3().subVectors(controls.target, camera.position)
+  let yaw = Math.atan2(dir.z, dir.x)
+  if (!roomAt(x, y) || blocked(x, y, rects)) {
+    ;[x, y] = model.rooms.find(r => r.name === '현관').label
+    yaw = Math.PI / 2
+  }
+  walk = { x, y, yaw, pitch: 0, room: roomAt(x, y), saved: { pos: camera.position.clone(), target: controls.target.clone(), wallH } }
+  controls.enabled = false
+  if (wallH !== FULL_H) setWall(FULL_H)
+  camera.fov = WALK.fov
+  camera.updateProjectionMatrix()
+  document.activeElement?.blur()
+  $('walk-toggle').classList.add('on')
+  $('walk-toggle').textContent = '걷기 끝내기 (Esc)'
+  hint.classList.add('walk')
+  walkHint()
+  placeWalkCamera()
+}
+function walkEnd() {
+  if (!walk) return
+  const { saved } = walk
+  walk = null
+  look = null
+  walkKeys.clear()
+  camera.fov = 45
+  camera.updateProjectionMatrix()
+  if (saved.wallH !== wallH) setWall(saved.wallH)
+  camera.position.copy(saved.pos)
+  controls.target.copy(saved.target)
+  controls.enabled = true
+  controls.update()
+  $('walk-toggle').classList.remove('on')
+  $('walk-toggle').textContent = '걷기 시작'
+  hint.classList.remove('walk')
+  hint.textContent = DEFAULT_HINT
+}
+function walkStep(dt) {
+  const k = walkKeys
+  const f = (k.has('w') || k.has('arrowup') ? 1 : 0) - (k.has('s') || k.has('arrowdown') ? 1 : 0)
+  const s = (k.has('d') || k.has('arrowright') ? 1 : 0) - (k.has('a') || k.has('arrowleft') ? 1 : 0)
+  if (f || s) {
+    const step = WALK.speed * (k.has('shift') ? 2 : 1) * dt / Math.hypot(f, s)
+    const c = Math.cos(walk.yaw), n = Math.sin(walk.yaw)
+    const dx = (c * f - n * s) * step, dy = (n * f + c * s) * step
+    const rects = walkBlockers()
+    // 한 축씩 움직여서 벽에 닿으면 미끄러지듯 비켜 간다
+    if (!blocked(walk.x + dx, walk.y, rects)) walk.x += dx
+    if (!blocked(walk.x, walk.y + dy, rects)) walk.y += dy
+    const room = roomAt(walk.x, walk.y)
+    if (room !== walk.room) { walk.room = room; walkHint() }
+  }
+  placeWalkCamera()
+}
+function setEye(h) {
+  eyeH = h
+  $('eye-adult').classList.toggle('on', h === 1.6)
+  $('eye-child').classList.toggle('on', h === 1.0)
+  if (walk) placeWalkCamera()
+}
+$('walk-toggle').onclick = () => (walk ? walkEnd() : walkStart())
+$('eye-adult').onclick = () => setEye(1.6)
+$('eye-child').onclick = () => setEye(1.0)
+window.addEventListener('keyup', e => walkKeys.delete(e.key.toLowerCase()))
+window.addEventListener('blur', () => walkKeys.clear())
 
 // ---- 제품 넣기 (이름·크기·가격·링크 → 가구로 생기고 견적 합산) ----
 // 제품 정의는 브라우저에 따로 저장하고, 놓은 자리·보이기는 다른 가구처럼 state.furniture에 둔다
@@ -1283,7 +1410,7 @@ function ensureProductState(s) {
 function viewCenter() {
   const x = controls.target.x + CX, y = controls.target.z + CZ
   const inside = x > 0.5 && x < model.extent[0] - 0.5 && y > 0.5 && y < model.extent[1] - 0.5
-  return inside ? [Math.round(x * 100) / 100, Math.round(y * 100) / 100] : [4.7, 6.0]
+  return inside ? [Math.round(x * 100) / 100, Math.round(y * 100) / 100] : [5.17, 6.6]
 }
 // 처음 놓을 자리가 벽·가구와 겹치면 가까운 빈자리를 찾는다.
 // 5cm 간격으로 가까운 점부터, 방향 0°·90° 순서로 본다. 네 모서리와 가운데가 모두 같은 방 안이어야 한다(문 앞·벽 너머 방지)
@@ -1636,7 +1763,9 @@ function updateLabelOcclusion() {
   }
 }
 renderer.setAnimationLoop(() => {
-  controls.update()
+  const dt = Math.min(walkClock.getDelta(), 0.1)
+  if (walk) walkStep(dt)
+  else controls.update()
   if (frame++ % 6 === 0) updateLabelOcclusion()
   selectBox?.update()
   renderer.render(scene, camera)
@@ -1646,6 +1775,7 @@ window.__viewer = {
   scene, camera, controls, floors, furnitureObjs, THREE,
   get state() { return state }, products, footprint, hitsWall, hitsFurniture, labels, stateFrom, onFloor, itemById, loadProposal,
   selectRoom, selectFurniture, setView, setWall, setMeasuring, addMeasure, undo, redo,
+  walkStart, walkEnd, walkKeys, setEye, get walk() { return walk },
 }
 </script>
 </body>
