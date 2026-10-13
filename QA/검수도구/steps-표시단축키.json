@@ -1,0 +1,6 @@
+[
+ {"name": "01-처음", "js": "(() => { const v = __viewer; return { 격자: document.getElementById('show-grid').checked, 이름표: document.getElementById('show-labels').checked, 보이는이름표: v.labels.filter(l => l.visible).length } })()"},
+ {"name": "02-z", "key": "z", "after": "(() => ({ 격자: document.getElementById('show-grid').checked }))()"},
+ {"name": "03-x", "key": "x", "after": "(() => ({ 이름표: document.getElementById('show-labels').checked, 보이는이름표: __viewer.labels.filter(l => l.visible).length }))()"},
+ {"name": "04-다시z·x", "js": "(() => { const k = (key, o = {}) => window.dispatchEvent(new KeyboardEvent('keydown', { key, ...o })); k('z'); k('x'); const r = { 격자: document.getElementById('show-grid').checked, 이름표: document.getElementById('show-labels').checked }; k('z', { ctrlKey: true }); r.ctrlZ후격자 = document.getElementById('show-grid').checked; const inp = document.getElementById('combo-name'); inp.focus(); inp.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', bubbles: true })); r.입력칸z후격자 = document.getElementById('show-grid').checked; return r })()"}
+]

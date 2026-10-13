@@ -75,6 +75,7 @@
   .chip { display: flex; align-items: center; gap: 6px; text-align: left; padding: 5px 6px; font-size: 12px; }
   .chip .sw { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex: none; }
   .note { font-size: 12px; color: var(--muted); margin: 6px 0; }
+  .key { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; margin-left: 2px; }
   .option-box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
   .p-size { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin: 4px 0; }
   .p-form > * { margin-bottom: 4px; }
@@ -200,8 +201,8 @@
       </div>
       <div class="note">W/A/S/D·방향키로 걷고, 마우스를 끌어 둘러봅니다. Shift: 빨리</div>
       <h2>표시</h2>
-      <label class="check"><input type="checkbox" id="show-grid" checked> 1m 격자</label>
-      <label class="check"><input type="checkbox" id="show-labels" checked> 방 이름</label>
+      <label class="check"><input type="checkbox" id="show-grid"> 1m 격자 <span class="key">Z</span></label>
+      <label class="check"><input type="checkbox" id="show-labels"> 방 이름 <span class="key">X</span></label>
     </section>
 
     <!-- 마감재 -->
@@ -1058,6 +1059,7 @@ $('wall-full').onclick = () => setWall(FULL_H)
 $('wall-low').onclick = () => setWall(LOW_H)
 
 $('show-grid').onchange = e => { grid.visible = e.target.checked }
+grid.visible = $('show-grid').checked
 $('show-labels').onchange = () => applyFocus()
 
 // ---- 탭 ----
@@ -1136,6 +1138,10 @@ window.addEventListener('keydown', e => {
     const k = e.key.toLowerCase()
     if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return }
     if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); return }
+  }
+  if (!typing && !e.ctrlKey && !e.metaKey && !e.altKey && !e.repeat) {
+    const toggle = { z: 'show-grid', x: 'show-labels' }[e.key.toLowerCase()]
+    if (toggle) { $(toggle).click(); return }
   }
   if (e.target.tagName === 'INPUT') return
   if (walk) {
