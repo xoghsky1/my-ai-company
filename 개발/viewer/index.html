@@ -84,6 +84,7 @@
   #product-list .p-top .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #product-list .p-sub { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
   #product-list button { padding: 2px 8px; font-size: 12px; }
+  #product-list li.editing { background: var(--accent-soft); border-radius: 6px; padding: 6px; }
   .estimate { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-variant-numeric: tabular-nums; }
   .estimate .big { font-size: 16px; font-weight: 700; color: var(--accent); }
   #p-msg.err { color: var(--measure); }
@@ -206,7 +207,7 @@
 
     <!-- 제품 넣기 -->
     <section class="tab-body" id="tab-product">
-      <h2>제품 넣기</h2>
+      <h2 id="p-form-title">제품 넣기</h2>
       <div class="p-form">
         <input type="text" id="p-name" placeholder="제품 이름 (예: 한샘 3인 소파)" maxlength="40">
         <div class="note" style="margin:2px 0 0">크기 (mm) · 가로 / 깊이 / 높이</div>
@@ -218,8 +219,8 @@
         <select id="p-shape"></select>
         <input type="number" id="p-price" placeholder="가격 (원)" min="0" step="1000">
         <input type="url" id="p-url" placeholder="상품 링크 (선택)">
-        <div class="row"><button id="p-add" class="primary">뷰어에 넣기</button></div>
-        <div class="note" id="p-msg">보고 있는 화면 가운데에 놓입니다. 놓은 뒤 끌어서 옮기세요.</div>
+        <div class="row"><button id="p-add" class="primary">뷰어에 넣기</button><button id="p-cancel" style="display:none">취소</button></div>
+        <div class="note" id="p-msg">보고 있는 화면 가운데에 놓입니다. 겹치면 가까운 빈자리로 옮겨 놓습니다.</div>
       </div>
       <div class="estimate">
         <div>이 조합에 놓인 제품 <span id="est-count">0개</span></div>
@@ -1214,8 +1215,7 @@ function loadProducts() {
   try { return JSON.parse(localStorage.getItem(PRODUCT_KEY) ?? '[]') } catch { return [] }
 }
 function saveProducts() {
-  const data = products.map(({ id, name, size, price, url, shape }) => ({ id, name, size, price, url, shape }))
-  try { localStorage.setItem(PRODUCT_KEY, JSON.stringify(data)); return true } catch { return false }
+  try { localStorage.setItem(PRODUCT_KEY, JSON.stringify(productDefs())); return true } catch { return false }
 }
 function productItem(p) {
   const tpl = itemById[SHAPES.find(x => x[0] === p.shape)?.[2]]
@@ -1234,6 +1234,33 @@ function addProductItem(p) {
   furnitureGroup.add(g)
   furnitureObjs.set(item.id, g)
   return item
+}
+// 제품 정의(이름·크기·모양·가격·링크)가 바뀌면 같은 자리에서 모양을 다시 만든다
+function updateProductItem(p) {
+  const i = products.findIndex(x => x.id === p.id)
+  const item = productItem(p)
+  products[i] = { ...p, item }
+  interior.furniture[interior.furniture.findIndex(f => f.id === p.id)] = item
+  itemById[p.id] = item
+  const old = furnitureObjs.get(p.id)
+  furnitureGroup.remove(old)
+  old.traverse(m => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose() } })
+  const g = buildFurniture(item)
+  furnitureGroup.add(g)
+  furnitureObjs.set(p.id, g)
+  if (selectedFurniture === old) selectFurniture(g)
+}
+const productDefs = () => products.map(({ id, name, size, price, url, shape }) => ({ id, name, size, price, url, shape }))
+// 되돌리기: 기록해 둔 제품 목록으로 맞춘다 (빠진 것은 다시 넣고, 없던 것은 빼고, 바뀐 것은 다시 만든다)
+function syncProducts(defs) {
+  const want = new Map(defs.map(d => [d.id, d]))
+  for (const p of [...products]) if (!want.has(p.id)) removeProductItem(p.id)
+  for (const d of defs) {
+    const cur = products.find(p => p.id === d.id)
+    if (!cur) addProductItem(d)
+    else if (JSON.stringify(productDefs().find(x => x.id === d.id)) !== JSON.stringify(d)) updateProductItem(d)
+  }
+  saveProducts()
 }
 function removeProductItem(id) {
   const i = products.findIndex(p => p.id === id)
@@ -1258,11 +1285,45 @@ function viewCenter() {
   const inside = x > 0.5 && x < model.extent[0] - 0.5 && y > 0.5 && y < model.extent[1] - 0.5
   return inside ? [Math.round(x * 100) / 100, Math.round(y * 100) / 100] : [4.7, 6.0]
 }
+// 처음 놓을 자리가 벽·가구와 겹치면 가까운 빈자리를 찾는다.
+// 5cm 간격으로 가까운 점부터, 방향 0°·90° 순서로 본다. 네 모서리와 가운데가 모두 같은 방 안이어야 한다(문 앞·벽 너머 방지)
+const NO_AUTO_ROOMS = new Set(['욕실1', '욕실2', '실외기실', '현관'])
+function roomAt(x, y) {
+  return model.rooms.find(r => r.cells.some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1))?.name
+}
+function fitsHere(id) {
+  if (hitsWall(id) || hitsFurniture(id).length) return false
+  const [a0, b0, a1, b1] = footprint(id)
+  const room = roomAt((a0 + a1) / 2, (b0 + b1) / 2)
+  if (!room || NO_AUTO_ROOMS.has(room)) return false
+  return [[a0, b0], [a1, b0], [a0, b1], [a1, b1]].every(([x, y]) => roomAt(x, y) === room)
+}
+function findFreeSpot(id) {
+  const s = state.furniture[id]
+  const start = [...s.at], rot0 = s.rot
+  const pts = []
+  for (let x = 0.3; x < model.extent[0] - 0.3; x += 0.05)
+    for (let y = 0.3; y < model.extent[1] - 0.3; y += 0.05)
+      pts.push([Math.round(x * 100) / 100, Math.round(y * 100) / 100, Math.hypot(x - start[0], y - start[1])])
+  pts.sort((a, b) => a[2] - b[2])
+  for (const at of [start, ...pts]) {
+    for (const rot of [rot0, (rot0 + 90) % 360]) {
+      s.at = [at[0], at[1]]
+      s.rot = rot
+      if (fitsHere(id)) return true
+    }
+  }
+  s.at = start
+  s.rot = rot0
+  return false
+}
 function productMsg(text, err = false) {
   $('p-msg').textContent = text
   $('p-msg').classList.toggle('err', err)
 }
-$('p-add').onclick = () => {
+const FORM_IDS = ['p-name', 'p-w', 'p-d', 'p-h', 'p-price', 'p-url']
+let editingId = null   // 수정 중인 제품 id (없으면 새로 넣기)
+function readForm() {
   const name = $('p-name').value.trim()
   const size = ['p-w', 'p-d', 'p-h'].map(id => Math.round(Number($(id).value)))
   const price = Number($('p-price').value || 0)
@@ -1271,15 +1332,53 @@ $('p-add').onclick = () => {
   if (size.some(v => !(v >= 10 && v <= 5000))) return productMsg('크기는 가로·깊이·높이 모두 10~5000mm로 넣어 주세요.', true)
   if (!(price >= 0)) return productMsg('가격은 0 이상 숫자로 넣어 주세요.', true)
   if (url && !/^https?:\/\//i.test(url)) return productMsg('링크는 http:// 또는 https://로 시작해야 합니다.', true)
-  const shape = SHAPES[$('p-shape').selectedIndex][0]
+  return { name, size, price, url, shape: SHAPES[$('p-shape').selectedIndex][0] }
+}
+function setEditing(p) {
+  editingId = p?.id ?? null
+  for (const id of FORM_IDS) $(id).value = ''
+  if (p) {
+    $('p-name').value = p.name
+    ;[$('p-w').value, $('p-d').value, $('p-h').value] = p.size
+    $('p-price').value = p.price
+    $('p-url').value = p.url ?? ''
+    $('p-shape').selectedIndex = Math.max(0, SHAPES.findIndex(x => x[0] === p.shape))
+  }
+  $('p-add').textContent = p ? '수정 저장' : '뷰어에 넣기'
+  $('p-cancel').style.display = p ? '' : 'none'
+  $('p-form-title').textContent = p ? `제품 수정: ${p.name}` : '제품 넣기'
+  renderProducts()
+}
+$('p-cancel').onclick = () => { setEditing(null); productMsg('수정을 취소했습니다.') }
+$('p-add').onclick = () => {
+  const form = readForm()
+  if (!form) return
   remember()
-  const item = addProductItem({ id: `p-${Date.now().toString(36)}`, name, size, price, url, shape })
-  const at = viewCenter()
-  state.furniture[item.id] = { at, rot: 0, visible: true }
-  baseState.furniture[item.id] = { at: [...at], rot: 0, visible: true }
+  if (editingId) {
+    const id = editingId
+    updateProductItem({ id, ...form })
+    const hit = state.furniture[id].visible && (hitsWall(id) || hitsFurniture(id).length)
+    saveProducts()
+    setEditing(null)
+    productMsg(`"${form.name}"을(를) 고쳤습니다.${hit ? ' 크기가 바뀌어 다른 것과 겹칩니다. 끌어서 옮겨 주세요.' : ''}`, !!hit)
+    markChanged()
+    placeAll()
+    selectFurniture(furnitureObjs.get(id))
+    return
+  }
+  const item = addProductItem({ id: `p-${Date.now().toString(36)}`, ...form })
+  state.furniture[item.id] = { at: viewCenter(), rot: 0, visible: true }
+  let note = '끌어서 자리를 잡으세요.'
+  if (onFloor(item.id) && !fitsHere(item.id)) {
+    note = findFreeSpot(item.id)
+      ? '보던 자리가 겹쳐서 가까운 빈자리에 놓았습니다.'
+      : '빈자리를 찾지 못해 보던 자리에 놓았습니다. 끌어서 옮겨 주세요.'
+  }
+  const s = state.furniture[item.id]
+  baseState.furniture[item.id] = { at: [...s.at], rot: s.rot, visible: true }
+  for (const id of FORM_IDS) $(id).value = ''
   if (!saveProducts()) productMsg('이 브라우저에서는 제품을 저장할 수 없습니다. 새로고침하면 사라집니다.', true)
-  else productMsg(`"${name}"을(를) 넣었습니다. 끌어서 자리를 잡으세요.`)
-  for (const id of ['p-name', 'p-w', 'p-d', 'p-h', 'p-price', 'p-url']) $(id).value = ''
+  else productMsg(`"${form.name}"을(를) 넣었습니다. ${note}`)
   markChanged()
   placeAll()
   selectFurniture(furnitureObjs.get(item.id))
@@ -1313,14 +1412,20 @@ function renderProducts() {
     const del = document.createElement('button')
     del.textContent = '삭제'
     del.onclick = () => {
-      if (!confirm(`"${p.name}"을(를) 제품 목록에서 지울까요? 저장된 조합에서도 사라지고, 되돌릴 수 없습니다.`)) return
+      if (!confirm(`"${p.name}"을(를) 제품 목록에서 지울까요? 저장된 조합에서도 사라집니다. (Ctrl+Z로 되돌릴 수 있습니다)`)) return
+      remember()
       if (selectedFurniture?.userData.item.id === p.id) selectFurniture(null)
+      if (editingId === p.id) setEditing(null)
       removeProductItem(p.id)
       saveProducts()
       markChanged()
       placeAll()
     }
-    top.append(cb, name, del)
+    const edit = document.createElement('button')
+    edit.textContent = '수정'
+    edit.onclick = () => { setEditing(p); productMsg('값을 고친 뒤 [수정 저장]을 누르세요. 놓인 자리는 그대로입니다.') }
+    if (editingId === p.id) li.className = 'editing'
+    top.append(cb, name, edit, del)
     const sub = document.createElement('div')
     sub.className = 'p-sub'
     sub.append(`${p.size.join('×')}mm · ${won(p.price)}`)
@@ -1363,7 +1468,7 @@ function saveCombos(list) {
 const UNDO_MAX = 100
 const undoStack = []
 const redoStack = []
-function snapshot() { return { state: JSON.stringify(state), combo: currentCombo, changed } }
+function snapshot() { return { state: JSON.stringify(state), products: JSON.stringify(productDefs()), combo: currentCombo, changed } }
 function remember() {
   undoStack.push(snapshot())
   if (undoStack.length > UNDO_MAX) undoStack.shift()
@@ -1372,7 +1477,10 @@ function remember() {
 }
 function restore(snap) {
   state = JSON.parse(snap.state)
+  if (snap.products) syncProducts(JSON.parse(snap.products))
+  if (editingId && !products.some(p => p.id === editingId)) setEditing(null)
   ensureProductState(state)
+  ensureProductState(baseState)
   currentCombo = snap.combo
   changed = snap.changed
   const id = selectedFurniture?.userData.item.id
