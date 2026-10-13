@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>우리집 3D 뷰어</title>
+<title>3D 뷰어</title>
 <style>
   :root {
     --bg: #eef0f3;
@@ -115,6 +115,26 @@
     pointer-events: none; white-space: nowrap;
   }
   #hint.measure { color: var(--measure); border-color: #f3b4b6; }
+  #room-bar {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2;
+    display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: calc(100% - 320px);
+    background: rgba(255,255,255,.92); border: 1px solid var(--line); border-radius: 10px; padding: 4px;
+  }
+  #room-bar button { padding: 2px 8px; font-size: 12px; }
+  #room-panel {
+    position: absolute; top: 12px; right: 12px; width: 260px; max-height: calc(100% - 120px); overflow-y: auto; z-index: 2;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; box-shadow: 0 6px 20px rgba(0,0,0,.12);
+  }
+  #room-panel h2 { font-size: 12px; color: var(--muted); margin: 12px 0 6px; font-weight: 600; }
+  #room-panel .rp-head { position: relative; padding-right: 32px; }
+  #room-panel .rp-head b { font-size: 16px; }
+  #room-panel .rp-head .sub { display: block; font-size: 12px; color: var(--muted); }
+  #room-panel .rp-head > button { position: absolute; top: 0; right: 0; padding: 0 8px; }
+  #room-panel .rp-item { display: flex; align-items: center; gap: 6px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  #room-panel .rp-name { flex: 1; text-align: left; border: 0; background: none; padding: 2px 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #room-panel .rp-name.on { color: var(--accent); font-weight: 700; }
+  #room-panel .rp-item > button:last-child:not(.rp-name) { padding: 0 6px; }
+  #room-panel .rp-warn { font-size: 11px; color: var(--measure); font-weight: 700; }
   #hint.walk { color: #15803D; border-color: #B7E4C7; }
   .room-label {
     background: #fff; border: 1px solid var(--line); border-radius: 8px;
@@ -264,6 +284,8 @@
 </aside>
 
 <main id="stage">
+  <div id="room-bar"></div>
+  <div id="room-panel" hidden></div>
   <div id="hint">왼쪽 드래그 회전 · 휠 확대 · 오른쪽 드래그 이동</div>
   <div id="error"></div>
 </main>
@@ -641,6 +663,7 @@ function applyFinishes() {
   if (artWallMesh) artWallMesh.visible = state.artWall
   $('art-wall').checked = state.artWall
   renderFinishPanel()
+  applyFocus()
 }
 
 // ---- 마감재 패널 ----
@@ -931,6 +954,8 @@ function renderFurnitureList() {
     }
     list.appendChild(row)
   }
+  applyFocus()
+  if (focus) renderRoomPanel()
 }
 function rotateSelected() {
   if (!selectedFurniture) return
@@ -969,7 +994,10 @@ function selectRoom(mesh) {
     <div class="room-name">${room.name}</div>
     <div>약 ${room.size[0].toFixed(1)} × ${room.size[1].toFixed(1)} m <span class="sub">(추정)</span></div>
     <div class="sub">바닥 면적 약 ${room.area.toFixed(1)}㎡ (추정)</div>
-    ${planName}`
+    ${planName}
+    <button id="room-edit" class="primary" style="margin-top:6px">이 방 편집</button>
+    <div class="sub">바닥을 더블클릭해도 됩니다</div>`
+  $('room-edit').onclick = () => focusRoom(room.name)
   if (interior.finishRooms.includes(room.name)) { finishRoom.value = room.name; renderFinishPanel() }
 }
 function selectFurniture(g, keepInfo = false) {
@@ -1005,6 +1033,8 @@ function showFurnitureInfo() {
 // ---- 시점 ----
 function setView(kind) {
   walkEnd()
+  exitFocus(false)
+  camAnim = null
   const span = Math.max(model.extent[0], model.extent[1])
   controls.target.set(0, 0, 0)
   if (kind === 'top') camera.position.set(0, span * 1.55, 0.001)
@@ -1028,7 +1058,7 @@ $('wall-full').onclick = () => setWall(FULL_H)
 $('wall-low').onclick = () => setWall(LOW_H)
 
 $('show-grid').onchange = e => { grid.visible = e.target.checked }
-$('show-labels').onchange = e => { for (const l of labels) l.visible = e.target.checked }
+$('show-labels').onchange = () => applyFocus()
 
 // ---- 탭 ----
 for (const b of document.querySelectorAll('.tabs button')) {
@@ -1115,6 +1145,7 @@ window.addEventListener('keydown', e => {
     return
   }
   if (e.key === 'Escape' && measuring) cancelFirst()
+  else if (e.key === 'Escape' && focus) exitFocus()
   if ((e.key === 'r' || e.key === 'R') && selectedFurniture) rotateSelected()
 })
 
@@ -1127,7 +1158,7 @@ function setRay(e) {
   ray.setFromCamera(ndc, camera)
 }
 function furnitureHit() {
-  const visible = [...furnitureObjs.values()].filter(g => g.visible)
+  const visible = [...furnitureObjs.values()].filter(g => g.visible && !g.userData.faded)
   const hit = ray.intersectObjects(visible, true)[0]
   if (!hit) return null
   let o = hit.object
@@ -1243,6 +1274,13 @@ function placeWalkCamera() {
 }
 function walkStart() {
   if (walk) return
+  if (focus) {
+    const { saved } = focus
+    exitFocus(false)
+    camAnim = null
+    camera.position.copy(saved.pos)
+    controls.target.copy(saved.target)
+  }
   setMeasuring(false)
   const rects = walkBlockers()
   // 보던 화면 가운데가 집 안 빈 바닥이면 거기서, 아니면 현관에서 거실 쪽(아래)을 보고 시작
@@ -1311,6 +1349,214 @@ $('eye-adult').onclick = () => setEye(1.6)
 $('eye-child').onclick = () => setEye(1.0)
 window.addEventListener('keyup', e => walkKeys.delete(e.key.toLowerCase()))
 window.addEventListener('blur', () => walkKeys.clear())
+
+// ---- 구역(방) 편집: 방 하나를 확대하고 그 방 마감재·가구만 모아 편집 ----
+const FOCUS = { dim: 0.55, fade: 0.2, ms: 600, tilt: 68 * Math.PI / 180 }
+const ROOM_ORDER = ['거실', '주방/식당', '안방', '아기방', '옷방', '현관', '복도', '욕실1', '욕실2', '다용도실', '발코니', '실외기실']
+let focus = null     // { room, saved: { pos, target, wallH } }
+let camAnim = null   // 카메라 부드럽게 옮기기
+
+function flyTo(pos, target) {
+  camAnim = { p0: camera.position.clone(), t0: controls.target.clone(), p1: pos, t1: target, start: performance.now() }
+}
+function stepCamAnim() {
+  if (!camAnim) return
+  const k = Math.min(1, (performance.now() - camAnim.start) / FOCUS.ms)
+  const e = 1 - (1 - k) ** 3
+  camera.position.lerpVectors(camAnim.p0, camAnim.p1, e)
+  controls.target.lerpVectors(camAnim.t0, camAnim.t1, e)
+  if (k === 1) camAnim = null
+}
+function roomBounds(name) {
+  const cells = model.rooms.find(r => r.name === name).cells
+  return [Math.min(...cells.map(c => c[0])), Math.min(...cells.map(c => c[1])), Math.max(...cells.map(c => c[2])), Math.max(...cells.map(c => c[3]))]
+}
+// 이 방 가구: 가운데가 방 안에 있는 보이는 가구 + 원래 이 방 가구로 정해 둔 숨긴 가구
+function roomItems(name) {
+  return interior.furniture.filter(f => {
+    const s = state.furniture[f.id]
+    if (!s) return false
+    return s.visible ? roomAt(s.at[0], s.at[1]) === name : f.room === name
+  })
+}
+// 집중 표시: 다른 방 바닥은 어둡게, 다른 방 이름표는 숨기고, 다른 방 가구는 흐리게(잡히지 않게)
+function applyFocus() {
+  for (const mesh of floors) {
+    const name = mesh.userData.room.name
+    const base = interior.finishRooms.includes(name) ? 0xffffff : (FIXED_FLOOR[name] ?? 0xd9c3a5)
+    mesh.material.color.setHex(base)
+    if (focus && name !== focus.room) mesh.material.color.multiplyScalar(FOCUS.dim)
+  }
+  const showLabels = $('show-labels').checked
+  for (const label of labels) label.visible = showLabels && (!focus || label.element.textContent === focus.room)
+  const mine = focus ? new Set(roomItems(focus.room).map(f => f.id)) : null
+  for (const [id, g] of furnitureObjs) {
+    // 편집 중에는 다른 방 가구와, 방을 가리는 커튼(창호)을 흐리게
+    const faded = !!mine && (!mine.has(id) || itemById[id].group === '창호')
+    if (g.userData.faded === faded) continue
+    g.userData.faded = faded
+    g.traverse(m => {
+      if (!m.isMesh) return
+      m.material.transparent = faded
+      m.material.opacity = faded ? FOCUS.fade : 1
+      m.material.depthWrite = !faded
+      m.material.needsUpdate = true
+    })
+  }
+  if (focus && selectedFurniture?.userData.faded) selectFurniture(null)
+}
+function focusRoom(name) {
+  if (walk) walkEnd()
+  if (measuring) setMeasuring(false)
+  const saved = focus?.saved ?? { pos: camera.position.clone(), target: controls.target.clone(), wallH }
+  focus = { room: name, saved }
+  selectRoom(null)
+  selectFurniture(null)
+  if (wallH !== LOW_H) setWall(LOW_H)
+  // 방 대각선이 화면에 꽉 차게, 남쪽(아래)에서 68° 내려다본다
+  const [x0, y0, x1, y1] = roomBounds(name)
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2
+  const radius = Math.hypot(x1 - x0, y1 - y0) / 2 * 1.1 + 0.2
+  // 오른쪽 편집 패널(약 280px)이 가리는 만큼을 빼고, 남은 자리 가운데에 방이 오게 한다
+  const W = renderer.domElement.clientWidth, PANEL = 280
+  const free = Math.max(0.4, (W - PANEL) / W)
+  const vfov = camera.fov * Math.PI / 180
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect * free)
+  const d = radius / Math.sin(Math.min(vfov, hfov) / 2)
+  const shift = 2 * d * Math.tan(vfov / 2) * camera.aspect * (PANEL / 2) / W
+  const target = new THREE.Vector3(px(cx) + shift, 0, pz(cy))
+  flyTo(target.clone().add(new THREE.Vector3(0, d * Math.sin(FOCUS.tilt), d * Math.cos(FOCUS.tilt))), target)
+  if (interior.finishRooms.includes(name)) { finishRoom.value = name; renderFinishPanel() }
+  applyFocus()
+  renderRoomPanel()
+  renderRoomBar()
+  hint.textContent = `${name} 편집 중 · 더블클릭: 다른 방 · Esc: 전체 보기`
+}
+function exitFocus(fly = true) {
+  if (!focus) return
+  const { saved } = focus
+  focus = null
+  if (saved.wallH !== wallH) setWall(saved.wallH)
+  applyFocus()
+  if (fly) flyTo(saved.pos, saved.target)
+  renderRoomPanel()
+  renderRoomBar()
+  if (!walk && !measuring) hint.textContent = DEFAULT_HINT
+}
+function renderRoomBar() {
+  const bar = $('room-bar')
+  bar.innerHTML = ''
+  const names = ['전체', ...ROOM_ORDER.filter(n => model.rooms.some(r => r.name === n))]
+  for (const n of names) {
+    const b = document.createElement('button')
+    b.textContent = n
+    b.classList.toggle('on', n === '전체' ? !focus : focus?.room === n)
+    b.onclick = () => (n === '전체' ? exitFocus() : focusRoom(n))
+    bar.appendChild(b)
+  }
+}
+function renderRoomPanel() {
+  const panel = $('room-panel')
+  panel.hidden = !focus
+  if (!focus) return
+  const name = focus.room
+  const room = model.rooms.find(r => r.name === name)
+  panel.innerHTML = ''
+  const head = document.createElement('div')
+  head.className = 'rp-head'
+  head.innerHTML = `<b>${esc(name)}</b><span class="sub">약 ${room.size[0].toFixed(1)} × ${room.size[1].toFixed(1)} m · ${room.area.toFixed(1)}㎡ (추정)</span>`
+  const close = document.createElement('button')
+  close.textContent = '×'
+  close.title = '전체 보기 (Esc)'
+  close.onclick = () => exitFocus()
+  head.prepend(close)
+  panel.appendChild(head)
+  const h = text => { const e = document.createElement('h2'); e.textContent = text; panel.appendChild(e) }
+  if (interior.finishRooms.includes(name)) {
+    h('바닥재')
+    const fc = document.createElement('div')
+    fc.className = 'chips'
+    for (const f of interior.floors)
+      fc.appendChild(chip(f.color, f.name, state.floors[name] === f.id, () => { remember(); state.floors[name] = f.id; markChanged(); applyFinishes(); renderRoomPanel() }))
+    panel.appendChild(fc)
+    h('벽 색')
+    const wc = document.createElement('div')
+    wc.className = 'chips'
+    for (const w of interior.walls)
+      wc.appendChild(chip(w.color, w.name, state.walls[name] === w.id, () => { remember(); state.walls[name] = w.id; markChanged(); applyFinishes(); renderRoomPanel() }))
+    panel.appendChild(wc)
+  } else {
+    const n = document.createElement('div')
+    n.className = 'note'
+    n.textContent = '이 방은 마감재가 고정입니다 (욕실·다용도실·발코니 등).'
+    panel.appendChild(n)
+  }
+  h('이 방 가구')
+  const items = roomItems(name)
+  if (!items.length) {
+    const n = document.createElement('div')
+    n.className = 'note'
+    n.textContent = '이 방에 놓인 가구가 없습니다. 아래 [제품 넣기]로 넣어 보세요.'
+    panel.appendChild(n)
+  }
+  for (const item of items) {
+    const row = document.createElement('div')
+    row.className = 'rp-item'
+    const cb = document.createElement('input')
+    cb.type = 'checkbox'
+    cb.checked = state.furniture[item.id].visible
+    cb.disabled = !!item.builtin
+    cb.onchange = () => {
+      remember()
+      state.furniture[item.id].visible = cb.checked
+      if (!cb.checked && selectedFurniture?.userData.item.id === item.id) selectFurniture(null)
+      markChanged()
+      placeAll()
+    }
+    const nm = document.createElement('button')
+    nm.className = 'rp-name' + (selectedFurniture?.userData.item.id === item.id ? ' on' : '')
+    nm.textContent = item.name
+    nm.title = '선택'
+    nm.onclick = () => { if (state.furniture[item.id].visible) { selectFurniture(furnitureObjs.get(item.id)); renderRoomPanel() } }
+    row.append(cb, nm)
+    const { hitsWall: wall, hitsFurniture: others } = furnitureObjs.get(item.id).userData
+    if (wall || others?.length) {
+      const w = document.createElement('span')
+      w.className = 'rp-warn'
+      w.textContent = '겹침'
+      row.append(w)
+    }
+    if (!item.builtin) {
+      const rot = document.createElement('button')
+      rot.textContent = '⟳'
+      rot.title = '90° 돌리기'
+      rot.disabled = !state.furniture[item.id].visible
+      rot.onclick = () => { selectFurniture(furnitureObjs.get(item.id)); rotateSelected() }
+      row.append(rot)
+    }
+    panel.appendChild(row)
+  }
+  const actions = document.createElement('div')
+  actions.className = 'row'
+  actions.style.marginTop = '10px'
+  const add = document.createElement('button')
+  add.textContent = '제품 넣기'
+  add.title = '제품 탭에서 넣으면 이 방 가운데에 놓입니다'
+  add.onclick = () => { document.querySelector('.tabs button[data-tab=product]').click(); $('p-name').focus() }
+  const back = document.createElement('button')
+  back.className = 'primary'
+  back.textContent = '전체 보기'
+  back.onclick = () => exitFocus()
+  actions.append(add, back)
+  panel.appendChild(actions)
+}
+renderer.domElement.addEventListener('dblclick', e => {
+  if (walk || measuring) return
+  setRay(e)
+  const hit = ray.intersectObjects(floors, false)[0]
+  if (hit) focusRoom(hit.object.userData.room.name)
+})
+renderRoomBar()
 
 // ---- 제품 넣기 (이름·크기·가격·링크 → 가구로 생기고 견적 합산) ----
 // 제품 정의는 브라우저에 따로 저장하고, 놓은 자리·보이기는 다른 가구처럼 state.furniture에 둔다
@@ -1765,7 +2011,7 @@ function updateLabelOcclusion() {
 renderer.setAnimationLoop(() => {
   const dt = Math.min(walkClock.getDelta(), 0.1)
   if (walk) walkStep(dt)
-  else controls.update()
+  else { stepCamAnim(); controls.update() }
   if (frame++ % 6 === 0) updateLabelOcclusion()
   selectBox?.update()
   renderer.render(scene, camera)
@@ -1776,6 +2022,7 @@ window.__viewer = {
   get state() { return state }, products, footprint, hitsWall, hitsFurniture, labels, stateFrom, onFloor, itemById, loadProposal,
   selectRoom, selectFurniture, setView, setWall, setMeasuring, addMeasure, undo, redo,
   walkStart, walkEnd, walkKeys, setEye, get walk() { return walk },
+  focusRoom, exitFocus, roomItems, get focus() { return focus }, get camAnim() { return camAnim },
 }
 </script>
 </body>
