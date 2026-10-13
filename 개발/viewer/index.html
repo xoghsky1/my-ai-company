@@ -67,7 +67,7 @@
   button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   label.check { display: flex; align-items: center; gap: 6px; margin: 4px 0; cursor: pointer; }
-  select, input[type=text] {
+  select, input[type=text], input[type=number], input[type=url] {
     font: inherit; font-size: 13px; width: 100%;
     padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff;
   }
@@ -76,6 +76,17 @@
   .chip .sw { width: 18px; height: 18px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex: none; }
   .note { font-size: 12px; color: var(--muted); margin: 6px 0; }
   .option-box { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 6px; }
+  .p-size { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px; margin: 4px 0; }
+  .p-form > * { margin-bottom: 4px; }
+  #product-list { list-style: none; padding: 0; margin: 6px 0 0; }
+  #product-list li { padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  #product-list .p-top { display: flex; align-items: center; gap: 6px; }
+  #product-list .p-top .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #product-list .p-sub { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+  #product-list button { padding: 2px 8px; font-size: 12px; }
+  .estimate { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-top: 10px; font-variant-numeric: tabular-nums; }
+  .estimate .big { font-size: 16px; font-weight: 700; color: var(--accent); }
+  #p-msg.err { color: var(--measure); }
   #combo-list { list-style: none; padding: 0; margin: 6px 0 0; }
   #combo-list li { display: flex; align-items: center; gap: 6px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
   #combo-list li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -127,6 +138,8 @@
   <h1 id="title">우리집 3D 뷰어</h1>
   <span class="badge">치수는 평면도 기반 추정 · 천장고 2.3m 추정</span>
   <span id="combo-now"></span>
+  <button id="undo" title="되돌리기 (Ctrl+Z)">↶ 되돌리기</button>
+  <button id="redo" title="다시 하기 (Ctrl+Y)">↷ 다시 하기</button>
 </header>
 
 <aside>
@@ -134,6 +147,7 @@
     <button data-tab="view" class="on">보기</button>
     <button data-tab="finish">마감재</button>
     <button data-tab="furniture">가구</button>
+    <button data-tab="product">제품</button>
     <button data-tab="combo">조합</button>
   </nav>
 
@@ -183,11 +197,38 @@
     <section class="tab-body" id="tab-furniture">
       <h2>가구 목록</h2>
       <div id="furniture-list"></div>
-      <div class="note">가구를 끌어서 옮기고, R 키로 돌립니다.</div>
+      <div class="note">가구를 끌어서 옮기고, R 키로 돌립니다. Ctrl+Z 되돌리기 · Ctrl+Y 다시 하기</div>
       <div class="row" style="margin-top:8px">
         <button id="furniture-rotate">90° 돌리기</button>
         <button id="furniture-reset">가구 처음 자리로</button>
       </div>
+    </section>
+
+    <!-- 제품 넣기 -->
+    <section class="tab-body" id="tab-product">
+      <h2>제품 넣기</h2>
+      <div class="p-form">
+        <input type="text" id="p-name" placeholder="제품 이름 (예: 한샘 3인 소파)" maxlength="40">
+        <div class="note" style="margin:2px 0 0">크기 (mm) · 가로 / 깊이 / 높이</div>
+        <div class="p-size">
+          <input type="number" id="p-w" placeholder="가로" min="10" max="5000" step="10">
+          <input type="number" id="p-d" placeholder="깊이" min="10" max="5000" step="10">
+          <input type="number" id="p-h" placeholder="높이" min="10" max="2300" step="10">
+        </div>
+        <select id="p-shape"></select>
+        <input type="number" id="p-price" placeholder="가격 (원)" min="0" step="1000">
+        <input type="url" id="p-url" placeholder="상품 링크 (선택)">
+        <div class="row"><button id="p-add" class="primary">뷰어에 넣기</button></div>
+        <div class="note" id="p-msg">보고 있는 화면 가운데에 놓입니다. 놓은 뒤 끌어서 옮기세요.</div>
+      </div>
+      <div class="estimate">
+        <div>이 조합에 놓인 제품 <span id="est-count">0개</span></div>
+        <div class="big" id="est-placed">0원</div>
+        <div class="note" style="margin:2px 0 0">후보 전체 <span id="est-all">0원</span> (놓지 않은 제품 포함)</div>
+      </div>
+      <h2>내 제품</h2>
+      <ul id="product-list"></ul>
+      <div class="note">제품 목록은 이 PC 브라우저에 저장됩니다. 놓은 자리·보이기는 조합을 저장할 때 함께 저장됩니다.</div>
     </section>
 
     <!-- 조합 -->
@@ -610,13 +651,14 @@ function renderFinishPanel() {
   fc.innerHTML = ''
   wc.innerHTML = ''
   for (const f of interior.floors)
-    fc.appendChild(chip(f.color, f.name, state.floors[room] === f.id, () => { state.floors[room] = f.id; markChanged(); applyFinishes() }))
+    fc.appendChild(chip(f.color, f.name, state.floors[room] === f.id, () => { remember(); state.floors[room] = f.id; markChanged(); applyFinishes() }))
   for (const w of interior.walls)
-    wc.appendChild(chip(w.color, w.name, state.walls[room] === w.id, () => { state.walls[room] = w.id; markChanged(); applyFinishes() }))
+    wc.appendChild(chip(w.color, w.name, state.walls[room] === w.id, () => { remember(); state.walls[room] = w.id; markChanged(); applyFinishes() }))
 }
 finishRoom.onchange = renderFinishPanel
 $('apply-all').onclick = () => {
   const room = finishRoom.value
+  remember()
   for (const name of interior.finishRooms) {
     state.floors[name] = state.floors[room]
     state.walls[name] = state.walls[room]
@@ -624,7 +666,7 @@ $('apply-all').onclick = () => {
   markChanged()
   applyFinishes()
 }
-$('art-wall').onchange = e => { state.artWall = e.target.checked; markChanged(); applyFinishes() }
+$('art-wall').onchange = e => { remember(); state.artWall = e.target.checked; markChanged(); applyFinishes() }
 
 // ---- 가구 ----
 const furnitureGroup = new THREE.Group()
@@ -684,6 +726,12 @@ function buildFurniture(item) {
   } else if (item.kind === 'counter') {
     part(g, mat(c.body), W, H - 0.04, D, 0, 0, 0)
     part(g, mat(c.top), W + 0.01, 0.04, D + 0.01, 0, H - 0.04, 0)
+  } else if (item.kind === 'bathtub') {
+    const t = 0.07   // 욕조 테두리 두께
+    part(g, mat(c.inner), W - 2 * t, 0.15, D - 2 * t, 0, 0, 0)   // 욕조 바닥 (안쪽)
+    part(g, mat(c.body), W, H, t, 0, 0, -D / 2 + t / 2)
+    part(g, mat(c.body), W, H, t, 0, 0, D / 2 - t / 2)
+    for (const sx of [-1, 1]) part(g, mat(c.body), t, H, D - 2 * t, sx * (W / 2 - t / 2), 0, 0)
   } else if (item.kind === 'fridge') {
     part(g, mat(c.body), W, H, D, 0, 0, 0)
     part(g, mat(c.line), 0.006, H - 0.04, 0.006, 0, 0.02, D / 2)        // 가운데 문틈
@@ -823,6 +871,7 @@ function placeAll() {
   for (const id of furnitureObjs.keys()) placeFurniture(id)
   updateWarnings()
   renderFurnitureList()
+  renderProducts()
   if (selectedFurniture) showFurnitureInfo()
 }
 
@@ -848,6 +897,7 @@ function renderFurnitureList() {
     cb.checked = state.furniture[item.id].visible
     cb.disabled = !!item.builtin
     cb.onchange = () => {
+      remember()
       state.furniture[item.id].visible = cb.checked
       if (!cb.checked && selectedFurniture?.userData.item.id === item.id) selectFurniture(null)
       markChanged()
@@ -875,13 +925,14 @@ function renderFurnitureList() {
 }
 function rotateSelected() {
   if (!selectedFurniture) return
+  remember()
   const s = state.furniture[selectedFurniture.userData.item.id]
   s.rot = (s.rot + 90) % 360
   markChanged()
   placeAll()
 }
 $('furniture-rotate').onclick = rotateSelected
-$('furniture-reset').onclick = () => { state.furniture = JSON.parse(JSON.stringify(baseState.furniture)); markChanged(); placeAll() }
+$('furniture-reset').onclick = () => { remember(); state.furniture = JSON.parse(JSON.stringify(baseState.furniture)); markChanged(); placeAll() }
 
 // ---- 선택 (방 / 가구) ----
 const info = $('info')
@@ -930,9 +981,13 @@ function showFurnitureInfo() {
   const { hitsWall: wall, hitsFurniture: others = [] } = selectedFurniture.userData
   const warn = (wall ? '<div class="warn">벽과 겹침</div>' : '') +
     (others.length ? `<div class="warn">다른 가구와 겹침: ${others.join(', ')}</div>` : '')
+  const prod = item.product
+    ? `<div>${won(item.product.price)}${item.product.url ? ` · <a href="${esc(item.product.url)}" target="_blank" rel="noopener">상품 보기</a>` : ''}</div>`
+    : ''
   info.innerHTML = `
-    <div class="room-name">${item.name}</div>
+    <div class="room-name">${esc(item.name)}</div>
     <div>${item.size[0]} × ${item.size[1]} × ${item.size[2]} mm</div>
+    ${prod}
     <div class="sub">방향 ${s.rot}° · R 키로 돌리기</div>
     ${warn}`
   selectBox?.update()
@@ -1035,6 +1090,13 @@ $('measure-clear').onclick = () => {
   measureList.innerHTML = ''
 }
 window.addEventListener('keydown', e => {
+  // 글자 입력칸(조합 이름 등)에서는 브라우저 기본 되돌리기를 쓴다. 체크박스에 포커스가 있을 때는 우리 되돌리기
+  const typing = e.target.tagName === 'TEXTAREA' || (e.target.tagName === 'INPUT' && !['checkbox', 'radio'].includes(e.target.type))
+  if ((e.ctrlKey || e.metaKey) && !drag && !typing) {
+    const k = e.key.toLowerCase()
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); return }
+    if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); return }
+  }
   if (e.target.tagName === 'INPUT') return
   if (e.key === 'Escape' && measuring) cancelFirst()
   if ((e.key === 'r' || e.key === 'R') && selectedFurniture) rotateSelected()
@@ -1071,7 +1133,7 @@ stage.addEventListener('pointerdown', e => {
   controls.enabled = false
   // 잡은 지점의 높이에 수평면을 두고 그 면 위에서 끈다: 잡은 지점이 계속 마우스 아래에 있다
   const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -point.y)
-  drag = { g, id: g.userData.item.id, plane, dx: g.position.x - point.x, dz: g.position.z - point.z, moved: false }
+  drag = { g, id: g.userData.item.id, plane, dx: g.position.x - point.x, dz: g.position.z - point.z, moved: false, before: snapshot() }
   selectFurniture(g)
 }, true)
 window.addEventListener('pointermove', e => {
@@ -1089,7 +1151,15 @@ window.addEventListener('pointermove', e => {
 window.addEventListener('pointerup', e => {
   if (e.button !== 0) return
   if (drag) {
-    if (drag.moved) { markChanged(); renderFurnitureList() }
+    if (drag.moved) {
+      // 끌기 한 번 = 되돌리기 한 번 (잡기 직전 상태를 쌓는다)
+      undoStack.push(drag.before)
+      if (undoStack.length > UNDO_MAX) undoStack.shift()
+      redoStack.length = 0
+      renderUndoButtons()
+      markChanged()
+      renderFurnitureList()
+    }
     drag = null
     down = null
     controls.enabled = true
@@ -1114,6 +1184,170 @@ window.addEventListener('pointerup', e => {
   else { selectRoom(null); selectFurniture(null) }
 })
 
+// ---- 제품 넣기 (이름·크기·가격·링크 → 가구로 생기고 견적 합산) ----
+// 제품 정의는 브라우저에 따로 저장하고, 놓은 자리·보이기는 다른 가구처럼 state.furniture에 둔다
+const PRODUCT_KEY = 'apt-my-products'
+// 모양: 비슷한 기존 가구의 모양·색을 빌려 쓴다 [값, 이름, 빌려 올 가구 id]
+const SHAPES = [
+  ['box', '상자 (기타)', null],
+  ['cabinet', '수납장·서랍장', 'cafe'],
+  ['shelf', '책장 (낮은)', 'lowshelf'],
+  ['wardrobe', '옷장·선반', 'wardrobe-1'],
+  ['sofa', '소파', 'sofa'],
+  ['armchair', '1인 의자', 'nursing'],
+  ['bed', '침대', 'bed'],
+  ['crib', '아기침대', 'crib'],
+  ['dining', '식탁 (의자 포함)', 'dining'],
+  ['rug', '러그·매트 (바닥에 까는 것)', 'playmat'],
+  ['lamp', '스탠드 조명', 'lamp'],
+  ['plant', '화분', 'plant'],
+  ['purifier', '공기청정기·소형 가전', 'purifier'],
+  ['fridge', '냉장고', 'fridge'],
+  ['washer', '세탁기·건조기', 'washer'],
+]
+const esc = t => String(t ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
+const won = n => `${Math.round(n || 0).toLocaleString('ko-KR')}원`
+const products = []   // 지금 뷰어에 들어 있는 제품 (interior.furniture에도 들어 있다)
+for (const [, label] of SHAPES) $('p-shape').add(new Option(label, label))
+
+function loadProducts() {
+  try { return JSON.parse(localStorage.getItem(PRODUCT_KEY) ?? '[]') } catch { return [] }
+}
+function saveProducts() {
+  const data = products.map(({ id, name, size, price, url, shape }) => ({ id, name, size, price, url, shape }))
+  try { localStorage.setItem(PRODUCT_KEY, JSON.stringify(data)); return true } catch { return false }
+}
+function productItem(p) {
+  const tpl = itemById[SHAPES.find(x => x[0] === p.shape)?.[2]]
+  const base = tpl
+    ? { ...tpl, mount: undefined, room: undefined, builtin: false }
+    : { kind: 'cabinet', colors: { body: '#EDEAE4', line: '#D6D1C8' } }
+  return { ...base, id: p.id, name: p.name, size: p.size, group: '내 제품', product: { price: p.price, url: p.url } }
+}
+// 제품을 가구로 등록한다 (모양 만들기·가구 목록·겹침 검사에 들어간다)
+function addProductItem(p) {
+  const item = productItem(p)
+  products.push({ ...p, item })
+  interior.furniture.push(item)
+  itemById[item.id] = item
+  const g = buildFurniture(item)
+  furnitureGroup.add(g)
+  furnitureObjs.set(item.id, g)
+  return item
+}
+function removeProductItem(id) {
+  const i = products.findIndex(p => p.id === id)
+  if (i < 0) return
+  products.splice(i, 1)
+  interior.furniture.splice(interior.furniture.findIndex(f => f.id === id), 1)
+  delete itemById[id]
+  const g = furnitureObjs.get(id)
+  furnitureGroup.remove(g)
+  g.traverse(m => { if (m.isMesh) { m.geometry.dispose(); m.material.dispose() } })
+  furnitureObjs.delete(id)
+  delete state.furniture[id]
+  delete baseState.furniture[id]
+}
+// 저장된 조합·되돌리기 기록에 없는 제품은 숨긴 채로 채운다
+function ensureProductState(s) {
+  for (const p of products) if (!s.furniture[p.id]) s.furniture[p.id] = { at: [CX, CZ], rot: 0, visible: false }
+}
+// 보고 있는 화면 가운데 (평면도 좌표). 집 밖이면 거실 가운데
+function viewCenter() {
+  const x = controls.target.x + CX, y = controls.target.z + CZ
+  const inside = x > 0.5 && x < model.extent[0] - 0.5 && y > 0.5 && y < model.extent[1] - 0.5
+  return inside ? [Math.round(x * 100) / 100, Math.round(y * 100) / 100] : [4.7, 6.0]
+}
+function productMsg(text, err = false) {
+  $('p-msg').textContent = text
+  $('p-msg').classList.toggle('err', err)
+}
+$('p-add').onclick = () => {
+  const name = $('p-name').value.trim()
+  const size = ['p-w', 'p-d', 'p-h'].map(id => Math.round(Number($(id).value)))
+  const price = Number($('p-price').value || 0)
+  const url = $('p-url').value.trim()
+  if (!name) return productMsg('제품 이름을 넣어 주세요.', true)
+  if (size.some(v => !(v >= 10 && v <= 5000))) return productMsg('크기는 가로·깊이·높이 모두 10~5000mm로 넣어 주세요.', true)
+  if (!(price >= 0)) return productMsg('가격은 0 이상 숫자로 넣어 주세요.', true)
+  if (url && !/^https?:\/\//i.test(url)) return productMsg('링크는 http:// 또는 https://로 시작해야 합니다.', true)
+  const shape = SHAPES[$('p-shape').selectedIndex][0]
+  remember()
+  const item = addProductItem({ id: `p-${Date.now().toString(36)}`, name, size, price, url, shape })
+  const at = viewCenter()
+  state.furniture[item.id] = { at, rot: 0, visible: true }
+  baseState.furniture[item.id] = { at: [...at], rot: 0, visible: true }
+  if (!saveProducts()) productMsg('이 브라우저에서는 제품을 저장할 수 없습니다. 새로고침하면 사라집니다.', true)
+  else productMsg(`"${name}"을(를) 넣었습니다. 끌어서 자리를 잡으세요.`)
+  for (const id of ['p-name', 'p-w', 'p-d', 'p-h', 'p-price', 'p-url']) $(id).value = ''
+  markChanged()
+  placeAll()
+  selectFurniture(furnitureObjs.get(item.id))
+}
+function renderProducts() {
+  const ul = $('product-list')
+  ul.innerHTML = ''
+  let placed = 0, placedN = 0, all = 0
+  for (const p of products) {
+    const s = state.furniture[p.id]
+    all += p.price || 0
+    if (s?.visible) { placed += p.price || 0; placedN++ }
+    const li = document.createElement('li')
+    const top = document.createElement('div')
+    top.className = 'p-top'
+    const cb = document.createElement('input')
+    cb.type = 'checkbox'
+    cb.checked = !!s?.visible
+    cb.title = '이 조합에 놓기'
+    cb.onchange = () => {
+      remember()
+      state.furniture[p.id].visible = cb.checked
+      if (!cb.checked && selectedFurniture?.userData.item.id === p.id) selectFurniture(null)
+      markChanged()
+      placeAll()
+    }
+    const name = document.createElement('span')
+    name.className = 'name'
+    name.textContent = p.name
+    name.title = p.name
+    const del = document.createElement('button')
+    del.textContent = '삭제'
+    del.onclick = () => {
+      if (!confirm(`"${p.name}"을(를) 제품 목록에서 지울까요? 저장된 조합에서도 사라지고, 되돌릴 수 없습니다.`)) return
+      if (selectedFurniture?.userData.item.id === p.id) selectFurniture(null)
+      removeProductItem(p.id)
+      saveProducts()
+      markChanged()
+      placeAll()
+    }
+    top.append(cb, name, del)
+    const sub = document.createElement('div')
+    sub.className = 'p-sub'
+    sub.append(`${p.size.join('×')}mm · ${won(p.price)}`)
+    if (p.url) {
+      const a = document.createElement('a')
+      a.href = p.url
+      a.target = '_blank'
+      a.rel = 'noopener'
+      a.textContent = '상품 보기'
+      sub.append(a)
+    }
+    li.append(top, sub)
+    ul.appendChild(li)
+  }
+  if (!products.length) ul.innerHTML = '<li class="note">아직 넣은 제품이 없습니다.</li>'
+  $('est-count').textContent = `${placedN}개`
+  $('est-placed').textContent = won(placed)
+  $('est-all').textContent = won(all)
+}
+// 처음 열 때: 저장된 제품을 불러와 숨긴 채로 둔다 (조합을 불러오면 그 조합에 놓인 자리로 나온다)
+for (const p of loadProducts()) {
+  if (!p?.id || !p.name || !Array.isArray(p.size) || p.size.length !== 3) continue
+  addProductItem(p)
+}
+ensureProductState(state)
+ensureProductState(baseState)
+
 // ---- 조합 저장·비교 ----
 const STORE_KEY = 'apt-interior-combos'
 let currentCombo = interior.preset.name
@@ -1124,6 +1358,50 @@ function loadCombos() {
 function saveCombos(list) {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); return true } catch { return false }
 }
+// ---- 되돌리기 (Ctrl+Z) · 다시 하기 (Ctrl+Y, Ctrl+Shift+Z) ----
+// 바꾸기 직전에 remember()로 지금 상태를 쌓아 두고, 되돌릴 때 그 상태로 바꾼다
+const UNDO_MAX = 100
+const undoStack = []
+const redoStack = []
+function snapshot() { return { state: JSON.stringify(state), combo: currentCombo, changed } }
+function remember() {
+  undoStack.push(snapshot())
+  if (undoStack.length > UNDO_MAX) undoStack.shift()
+  redoStack.length = 0
+  renderUndoButtons()
+}
+function restore(snap) {
+  state = JSON.parse(snap.state)
+  ensureProductState(state)
+  currentCombo = snap.combo
+  changed = snap.changed
+  const id = selectedFurniture?.userData.item.id
+  if (id && !state.furniture[id]?.visible) selectFurniture(null)
+  applyFinishes()
+  placeAll()
+  renderComboNow()
+  renderCombos()
+}
+function undo() {
+  if (!undoStack.length) return
+  redoStack.push(snapshot())
+  restore(undoStack.pop())
+  renderUndoButtons()
+}
+function redo() {
+  if (!redoStack.length) return
+  undoStack.push(snapshot())
+  restore(redoStack.pop())
+  renderUndoButtons()
+}
+function renderUndoButtons() {
+  $('undo').disabled = !undoStack.length
+  $('redo').disabled = !redoStack.length
+}
+$('undo').onclick = undo
+$('redo').onclick = redo
+renderUndoButtons()
+
 function markChanged() { changed = true; renderComboNow() }
 function renderComboNow() { $('combo-now').textContent = `조합: ${currentCombo}${changed ? ' (수정됨)' : ''}` }
 function applyState(s) {
@@ -1134,6 +1412,7 @@ function applyState(s) {
   state.floors = { ...base.floors, ...state.floors }
   state.walls = { ...base.walls, ...state.walls }
   state.furniture = { ...base.furniture, ...state.furniture }
+  ensureProductState(state)
   selectFurniture(null)
   applyFinishes()
   placeAll()
@@ -1161,6 +1440,7 @@ function renderProposals() {
 }
 function loadProposal(id) {
   const p = interior.proposals.find(x => x.id === id)
+  remember()
   applyState(stateFrom(p))
   currentCombo = p.name
   changed = false
@@ -1180,7 +1460,7 @@ function renderCombos() {
     name.textContent = c.name + (c.fixed ? ' (기본)' : '')
     const load = document.createElement('button')
     load.textContent = '불러오기'
-    load.onclick = () => { applyState(c.state); currentCombo = c.name; changed = false; renderComboNow(); renderCombos() }
+    load.onclick = () => { remember(); applyState(c.state); currentCombo = c.name; changed = false; renderComboNow(); renderCombos() }
     li.append(name, load)
     if (!c.fixed) {
       const del = document.createElement('button')
@@ -1256,8 +1536,8 @@ renderer.setAnimationLoop(() => {
 })
 window.__viewer = {
   scene, camera, controls, floors, furnitureObjs, THREE,
-  get state() { return state }, footprint, hitsWall, hitsFurniture, labels, stateFrom, onFloor, itemById, loadProposal,
-  selectRoom, selectFurniture, setView, setWall, setMeasuring, addMeasure,
+  get state() { return state }, products, footprint, hitsWall, hitsFurniture, labels, stateFrom, onFloor, itemById, loadProposal,
+  selectRoom, selectFurniture, setView, setWall, setMeasuring, addMeasure, undo, redo,
 }
 </script>
 </body>

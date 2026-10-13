@@ -45,6 +45,8 @@ window.APT_INTERIOR = {
       colors: { body: '#F4F2EE', top: '#E9E6E0' } },
     { id: 'shoe', kind: 'cabinet', group: '기본', name: '현관 신발장', room: '현관', size: [1170, 330, 2200], at: [6.125, 3.145], rot: 270, builtin: true, front: 600,
       colors: { body: '#F5F3EF', line: '#DDD8D0' } },
+    { id: 'bathtub', kind: 'bathtub', group: '기본', name: '욕조', room: '욕실1', size: [1190, 620, 550], at: [7.962, 3.30], rot: 0, builtin: true,
+      colors: { body: '#FAFAF8', inner: '#EEF1F2' } },
 
     // 2단계 필수 가구
     { id: 'bed', kind: 'bed', group: '가구', name: '퀸 침대', room: '안방', size: [2000, 1500, 900], at: [1.2, 6.17], rot: 0, front: 500,
@@ -122,7 +124,7 @@ window.APT_INTERIOR = {
     floors: { '거실': 'white-oak', '주방/식당': 'white-oak', '안방': 'white-oak', '아기방': 'white-oak', '옷방': 'white-oak', '현관': 'white-porcelain', '복도': 'white-oak' },
     walls: { '거실': 'pure-white', '주방/식당': 'pure-white', '안방': 'pure-white', '아기방': 'pure-white', '옷방': 'pure-white', '현관': 'pure-white', '복도': 'pure-white' },
     artWall: false,
-    show: ['counter-a', 'counter-b', 'shoe', 'bed', 'crib', 'dresser', 'dining', 'sofa'],
+    show: ['counter-a', 'counter-b', 'shoe', 'bathtub', 'bed', 'crib', 'dresser', 'dining', 'sofa'],
   },
 
   // 팀 제안 3안 (3단계). show = 보이는 가구, place = 기본 자리에서 바꾼 위치·방향
@@ -133,7 +135,7 @@ window.APT_INTERIOR = {
       floors: { '거실': 'white-oak', '주방/식당': 'white-oak', '안방': 'white-oak', '아기방': 'white-oak', '옷방': 'white-oak', '현관': 'white-porcelain', '복도': 'white-oak' },
       walls: { '거실': 'pure-white', '주방/식당': 'pure-white', '안방': 'pure-white', '아기방': 'pure-white', '옷방': 'pure-white', '현관': 'pure-white', '복도': 'pure-white' },
       artWall: false,
-      show: ['counter-a', 'counter-b', 'shoe', 'bed', 'nightstand-1', 'crib', 'dresser', 'nursing', 'dining', 'sofa', 'lowshelf', 'playmat', 'lamp', 'plant-2',
+      show: ['counter-a', 'counter-b', 'shoe', 'bathtub', 'bed', 'nightstand-1', 'crib', 'dresser', 'nursing', 'dining', 'sofa', 'lowshelf', 'playmat', 'lamp', 'plant-2',
              'fridge', 'washer', 'robot', 'aircon', 'aircon-wall', 'purifier', 'wardrobe-1', 'wardrobe-2', 'mirror',
              'curtain-living', 'curtain-master', 'curtain-baby'],
       place: {},
@@ -144,7 +146,7 @@ window.APT_INTERIOR = {
       floors: { '거실': 'warm-gray', '주방/식당': 'warm-gray', '안방': 'warm-gray', '아기방': 'warm-gray', '옷방': 'warm-gray', '현관': 'white-porcelain', '복도': 'warm-gray' },
       walls: { '거실': 'warm-white', '주방/식당': 'warm-white', '안방': 'warm-white', '아기방': 'warm-white', '옷방': 'warm-white', '현관': 'warm-white', '복도': 'warm-white' },
       artWall: true,
-      show: ['counter-a', 'counter-b', 'shoe', 'bed', 'nightstand-1', 'crib', 'dresser', 'nursing', 'dining', 'sofa', 'tvstand', 'tv', 'rug', 'plant',
+      show: ['counter-a', 'counter-b', 'shoe', 'bathtub', 'bed', 'nightstand-1', 'crib', 'dresser', 'nursing', 'dining', 'sofa', 'tvstand', 'tv', 'rug', 'plant',
              'fridge', 'washer', 'robot', 'aircon', 'aircon-wall', 'purifier', 'wardrobe-1', 'wardrobe-2', 'mirror',
              'curtain-living', 'curtain-master', 'curtain-baby'],
       place: {},
@@ -155,7 +157,7 @@ window.APT_INTERIOR = {
       floors: { '거실': 'white-oak', '주방/식당': 'white-oak', '안방': 'white-oak', '아기방': 'white-oak', '옷방': 'white-oak', '현관': 'white-porcelain', '복도': 'white-oak' },
       walls: { '거실': 'warm-white', '주방/식당': 'warm-white', '안방': 'warm-white', '아기방': 'sage-white', '옷방': 'warm-white', '현관': 'warm-white', '복도': 'warm-white' },
       artWall: false,
-      show: ['counter-a', 'counter-b', 'shoe', 'bed', 'crib', 'dresser', 'nursing', 'playmat', 'dining', 'sofa', 'tvstand', 'rug', 'lamp', 'plant-2',
+      show: ['counter-a', 'counter-b', 'shoe', 'bathtub', 'bed', 'crib', 'dresser', 'nursing', 'playmat', 'dining', 'sofa', 'tvstand', 'rug', 'lamp', 'plant-2',
              'fridge', 'washer', 'robot', 'aircon', 'aircon-wall', 'purifier', 'wardrobe-1', 'wardrobe-2', 'mirror',
              'curtain-living', 'curtain-master', 'curtain-baby'],
       place: {

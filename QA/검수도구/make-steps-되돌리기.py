@@ -1,0 +1,42 @@
+"""되돌리기(Ctrl+Z)·다시 하기(Ctrl+Y) 검수 단계 파일(steps-되돌리기.json)을 만든다.
+
+사용: python make-steps-되돌리기.py → node shoot.mjs <뷰어 URL> <저장 폴더> steps-되돌리기.json
+"""
+import json
+from pathlib import Path
+
+here = Path(__file__).parent
+PRE = ("const v = __viewer; const M = window.APT_MODEL; const cv = document.querySelector('#stage canvas').getBoundingClientRect();"
+       " const scr = (x, y, h) => { const p = new v.THREE.Vector3(x - M.extent[0]/2, h, y - M.extent[1]/2).project(v.camera);"
+       " return [cv.left + (p.x+1)/2*cv.width, cv.top + (1-p.y)/2*cv.height] };"
+       " const key = (k, o = {}, t = window) => t.dispatchEvent(new KeyboardEvent('keydown', { key: k, ctrlKey: true, bubbles: true, ...o }));"
+       " const sofa = () => JSON.stringify(v.state.furniture.sofa); const btn = () => [document.getElementById('undo').disabled, document.getElementById('redo').disabled];")
+
+
+def js(body):
+    return '(() => { ' + PRE + ' ' + body + ' })()'
+
+
+steps = [
+    {'name': '01-처음', 'js': js("v.loadProposal('A'); document.getElementById('view-top').click(); v.controls.update();"
+                                 " window.__s0 = sofa(); return { 소파: window.__s0, 버튼: btn() }"), 'wait': 800},
+    {'name': '02-소파끌기', 'dragJs': js("const s = v.state.furniture.sofa; const a = scr(s.at[0], s.at[1], 0.6); const b = scr(s.at[0] - 0.3, s.at[1], 0.6); return [...a, ...b]"),
+     'after': js("window.__s1 = sofa(); return { 소파: window.__s1, 버튼: btn() }")},
+    {'name': '03-R돌리기', 'key': 'r', 'after': js("window.__s2 = sofa(); return { 소파: window.__s2 }")},
+    {'name': '04-되돌리기', 'js': js(
+        "const r = {}; key('z'); r.z1_돌리기취소 = sofa() === window.__s1; key('z'); r.z2_끌기취소 = sofa() === window.__s1 ? false : sofa() === window.__s0;"
+        " r.버튼_처음까지 = btn(); key('y'); r.y1_끌기다시 = sofa() === window.__s1; key('z', { shiftKey: true }); r.y2_돌리기다시 = sofa() === window.__s2;"
+        " r.버튼_끝 = btn(); return r")},
+    {'name': '05-마감재·체크박스', 'js': js(
+        "const r = {}; const room = document.getElementById('finish-room').value; const f0 = v.state.floors[room];"
+        " const chips = document.querySelectorAll('#floor-chips > *'); [...chips].find(c => !c.classList.contains('on')).click(); r.바닥바뀜 = v.state.floors[room] !== f0;"
+        " key('z'); r.바닥되돌림 = v.state.floors[room] === f0;"
+        " const cb = [...document.querySelectorAll('#furniture-list input[type=checkbox]')].find(c => !c.disabled && c.checked); const label = cb.parentElement.textContent; const find = () => [...document.querySelectorAll('#furniture-list input[type=checkbox]')].find(c => c.parentElement.textContent.startsWith(label.split(' · ')[0]));"
+        " cb.click(); const cb1 = find(); cb1.focus(); r.숨김 = !cb1.checked; r.포커스 = document.activeElement === cb1;"
+        " key('z', {}, cb1); r.체크박스포커스에서_되돌림 = find().checked;"
+        " v.loadProposal('B'); key('z'); r.안불러오기_되돌림 = document.getElementById('combo-now').textContent; return r")},
+    {'name': '06-입력칸에서는_브라우저기본', 'js': js(
+        "const inp = document.querySelector('input[type=text]'); if (!inp) return '입력칸 없음'; const before = sofa(); inp.focus(); key('z', {}, inp); return { 영향없음: sofa() === before }")},
+]
+(here / 'steps-되돌리기.json').write_text(json.dumps(steps, ensure_ascii=False, indent=1), encoding='utf-8')
+print(len(steps), 'steps')
