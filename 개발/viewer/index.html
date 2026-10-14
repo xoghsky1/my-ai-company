@@ -128,6 +128,14 @@
   #compare-labels span { position: absolute; top: 96px; transform: translateX(-50%); background: rgba(0,0,0,.6); color: #fff; padding: 3px 12px; border-radius: 999px; font-size: 13px; font-weight: 700; }
   #compare-labels span:first-child { left: 25%; }
   #compare-labels span:last-child { left: 75%; }
+  #toast {
+    position: absolute; left: 50%; bottom: 48px; transform: translateX(-50%); z-index: 3;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px 6px 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.15); font-size: 13px;
+  }
+  #toast button { padding: 2px 10px; font-size: 12px; }
+  #io-msg.err { color: var(--measure); }
   #room-bar {
     position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 2;
     display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: calc(100% - 320px);
@@ -310,7 +318,15 @@
       </div>
       <h2>저장된 조합</h2>
       <ul id="combo-list"></ul>
-      <div class="note">이 PC의 브라우저에만 저장됩니다. 다른 PC나 브라우저에서는 보이지 않습니다.</div>
+      <div class="note">이 PC의 브라우저에만 저장됩니다. 다른 PC에서는 파일로 내보내기를 쓰세요.</div>
+      <h2>백업·옮기기</h2>
+      <div class="row">
+        <button id="export-file">파일로 내보내기</button>
+        <button id="import-file">파일 가져오기</button>
+        <input type="file" id="import-input" accept=".json,application/json" hidden>
+      </div>
+      <div class="note">조합·제품·지금 화면을 파일 하나로 저장합니다. 다른 PC·브라우저에서 가져오면 이어서 볼 수 있습니다.</div>
+      <div class="note" id="io-msg"></div>
     </section>
   </div>
 
@@ -324,6 +340,7 @@
 <main id="stage">
   <div id="room-bar"></div>
   <div id="room-panel" hidden></div>
+  <div id="toast" hidden></div>
   <div id="compare-labels" hidden><span>기본 조명</span><span>조명특화</span></div>
   <div id="hint">왼쪽 드래그 회전 · 휠 확대 · 오른쪽 드래그 이동</div>
   <div id="error"></div>
@@ -675,7 +692,7 @@ function stateFrom(p) {
     artWall: p.artWall,
     furniture: Object.fromEntries(interior.furniture.map(f => {
       const moved = p.place?.[f.id]
-      return [f.id, { at: [...(moved?.at ?? f.at)], rot: moved?.rot ?? f.rot, visible: show.has(f.id) }]
+      return [f.id, { at: [...(moved?.at ?? f.at ?? [CX, CZ])], rot: moved?.rot ?? f.rot ?? 0, visible: show.has(f.id) }]
     })),
   }
 }
@@ -1845,7 +1862,7 @@ function productItem(p) {
   const tpl = itemById[SHAPES.find(x => x[0] === p.shape)?.[2]]
   const base = tpl
     ? { ...tpl, mount: undefined, room: undefined, builtin: false }
-    : { kind: 'cabinet', colors: { body: '#EDEAE4', line: '#D6D1C8' } }
+    : { kind: 'cabinet', at: [CX, CZ], rot: 0, colors: { body: '#EDEAE4', line: '#D6D1C8' } }   // 상자(기타): 빌려 올 가구가 없어 기본 자리를 직접 둔다
   return { ...base, id: p.id, name: p.name, size: p.size, group: '내 제품', product: { price: p.price, url: p.url } }
 }
 // 제품을 가구로 등록한다 (모양 만들기·가구 목록·겹침 검사에 들어간다)
@@ -2135,7 +2152,10 @@ $('redo').onclick = redo
 renderUndoButtons()
 
 function markChanged() { changed = true; renderComboNow() }
-function renderComboNow() { $('combo-now').textContent = `조합: ${currentCombo}${changed ? ' (수정됨)' : ''}` }
+function renderComboNow() {
+  $('combo-now').textContent = `조합: ${currentCombo}${changed ? ' (수정됨)' : ''}`
+  saveDraft()
+}
 function applyState(s) {
   baseState = JSON.parse(JSON.stringify(s))
   state = JSON.parse(JSON.stringify(s))
@@ -2233,8 +2253,139 @@ function resize() {
 window.addEventListener('resize', resize)
 
 finishRoom.value = '거실'
+// ---- 자동 저장 · 파일 내보내기·가져오기 ----
+const DRAFT_KEY = 'apt-autosave'
+const FILE_APP = 'apt-3d-viewer'
+let draftReady = false   // 처음 열 때 이어서 열기를 마친 뒤부터 저장한다
+function saveDraft() {
+  if (!draftReady) return
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ v: 1, savedAt: Date.now(), combo: currentCombo, changed, state })) } catch { /* 저장소가 막힌 브라우저: 자동 저장 없이 동작 */ }
+}
+// 조합 이름으로 그 조합의 원래 상태(가구 처음 자리)를 찾는다
+function comboBase(name) {
+  const p = interior.proposals?.find(x => x.name === name)
+  if (p) return stateFrom(p)
+  const c = loadCombos().find(x => x.name === name)
+  return c ? c.state : presetState()
+}
+const validState = s => s && typeof s === 'object' && s.floors && s.walls && s.furniture && typeof s.furniture === 'object'
+function restoreDraft() {
+  let d = null
+  try { d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') } catch { d = null }
+  draftReady = true
+  if (!d || !validState(d.state)) return false
+  try {
+    applyState(d.state)
+    baseState = JSON.parse(JSON.stringify(comboBase(d.combo)))
+    ensureProductState(baseState)
+  } catch (err) {
+    // 저장된 작업을 열다 문제가 생기면 뷰어가 멈추지 않게 기본 조합으로 연다
+    console.warn('자동 저장 불러오기 실패', err)
+    applyState(presetState())
+    showToast('마지막 작업을 불러오지 못해 기본 조합으로 열었습니다')
+    return false
+  }
+  currentCombo = d.combo ?? interior.preset.name
+  changed = !!d.changed
+  showToast(`마지막 작업을 불러왔습니다 · ${currentCombo}${changed ? ' (수정됨)' : ''}`, '처음 상태로', () => {
+    remember()
+    applyState(presetState())
+    currentCombo = interior.preset.name
+    changed = false
+    renderComboNow()
+    renderCombos()
+  })
+  return true
+}
+let toastTimer = null
+function showToast(text, actionLabel, action) {
+  const t = $('toast')
+  t.innerHTML = ''
+  const span = document.createElement('span')
+  span.textContent = text
+  t.append(span)
+  if (actionLabel) {
+    const b = document.createElement('button')
+    b.textContent = actionLabel
+    b.onclick = () => { hideToast(); action() }
+    t.append(b)
+  }
+  const x = document.createElement('button')
+  x.textContent = '×'
+  x.title = '닫기'
+  x.onclick = hideToast
+  t.append(x)
+  t.hidden = false
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(hideToast, 10000)
+}
+function hideToast() { $('toast').hidden = true }
+function ioMsg(text, err = false) {
+  $('io-msg').textContent = text
+  $('io-msg').classList.toggle('err', err)
+}
+function stamp(d = new Date()) {
+  const p = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`
+}
+$('export-file').onclick = () => {
+  const data = {
+    app: FILE_APP, version: 1, exportedAt: new Date().toISOString(), title: model.title,
+    combos: loadCombos(), products: productDefs(),
+    current: { combo: currentCombo, changed, state },
+  }
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `우리집-인테리어-${stamp()}.json`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  ioMsg(`내보냈습니다: 조합 ${data.combos.length}개 · 제품 ${data.products.length}개 · 지금 화면`)
+}
+$('import-file').onclick = () => $('import-input').click()
+$('import-input').onchange = async e => {
+  const file = e.target.files?.[0]
+  e.target.value = ''
+  if (!file) return
+  let data
+  try { data = JSON.parse(await file.text()) } catch { return ioMsg('JSON 파일이 아니어서 읽지 못했습니다.', true) }
+  importData(data)
+}
+// 가져오기: 같은 이름 조합·같은 id 제품은 파일 것으로 바꾸고, 없는 것은 더한다(이 브라우저에만 있던 것은 그대로)
+function importData(data, ask = true) {
+  if (data?.app !== FILE_APP) return ioMsg('이 뷰어에서 내보낸 파일이 아닙니다.', true)
+  const combos = Array.isArray(data.combos) ? data.combos.filter(c => c && typeof c.name === 'string' && validState(c.state)) : []
+  const prods = Array.isArray(data.products) ? data.products.filter(p => p?.id && p.name && Array.isArray(p.size) && p.size.length === 3) : []
+  const cur = validState(data.current?.state) ? data.current : null
+  if (!combos.length && !prods.length && !cur) return ioMsg('파일에 가져올 내용이 없습니다.', true)
+  if (ask && !confirm(`조합 ${combos.length}개, 제품 ${prods.length}개${cur ? ', 지금 화면' : ''}을(를) 가져옵니다.\n같은 이름의 조합·같은 제품은 파일 내용으로 바뀝니다. (Ctrl+Z로 화면은 되돌릴 수 있습니다)`)) return
+  remember()
+  const merged = loadCombos().filter(c => !combos.some(x => x.name === c.name)).concat(combos)
+  if (!saveCombos(merged)) return ioMsg('이 브라우저에서는 저장할 수 없어 가져오지 못했습니다.', true)
+  for (const p of prods) {
+    const def = { id: p.id, name: String(p.name), size: p.size.map(Number), price: Number(p.price) || 0, url: typeof p.url === 'string' ? p.url : '', shape: p.shape }
+    if (products.some(x => x.id === def.id)) updateProductItem(def)
+    else addProductItem(def)
+  }
+  saveProducts()
+  ensureProductState(state)
+  if (cur) {
+    applyState(cur.state)
+    baseState = JSON.parse(JSON.stringify(comboBase(cur.combo)))
+    ensureProductState(baseState)
+    currentCombo = cur.combo ?? interior.preset.name
+    changed = !!cur.changed
+  } else placeAll()
+  renderComboNow()
+  renderCombos()
+  ioMsg(`가져왔습니다: 조합 ${combos.length}개 · 제품 ${prods.length}개${cur ? ` · 화면 "${currentCombo}"` : ''}`)
+}
+
 buildHouse()
 placeAll()
+restoreDraft()
 renderCombos()
 renderComboNow()
 hint.textContent = DEFAULT_HINT
@@ -2275,6 +2426,7 @@ window.__viewer = {
   walkStart, walkEnd, walkKeys, setEye, get walk() { return walk },
   focusRoom, exitFocus, roomItems, get focus() { return focus }, get camAnim() { return camAnim },
   light, LIGHT, roomLights, setNight, setLightMode, setCompare, applyScene, renderLightPanel,
+  importData, get currentCombo() { return currentCombo }, get changed() { return changed },
 }
 </script>
 </body>
